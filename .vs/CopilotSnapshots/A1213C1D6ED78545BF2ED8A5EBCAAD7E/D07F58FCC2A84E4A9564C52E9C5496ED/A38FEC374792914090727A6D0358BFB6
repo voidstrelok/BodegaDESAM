@@ -1,0 +1,58 @@
+﻿@page "/marcas"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+@inject MarcaService MarcaService
+@inject NavigationManager Nav
+
+<h3>Marcas</h3>
+
+<button type="button" @onclick="Nuevo">Nuevo</button>
+
+@if (marcas == null)
+{
+    <p>Cargando...</p>
+}
+else if (marcas.Count == 0)
+{
+    <p>No hay marcas ingresadas.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in marcas)
+            {
+                <tr>
+                    <td>@m.Id</td>
+                    <td>@m.Nombre</td>
+                    <td>
+                        <button type="button" @onclick="() => Editar(m.Id)">Editar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<Marca>? marcas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        marcas = await MarcaService.GetAllAsync();
+    }
+
+    void Nuevo()
+    {
+        Nav.NavigateTo("/marcas/nuevo");
+    }
+    void Editar(long id) => Nav.NavigateTo($"/marcas/editar/{id}");
+}

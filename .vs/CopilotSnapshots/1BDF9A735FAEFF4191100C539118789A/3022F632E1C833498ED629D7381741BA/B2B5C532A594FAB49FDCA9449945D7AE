@@ -1,0 +1,132 @@
+﻿@page "/salidas/nuevo"
+@page "/salidas/editar/{Id:int}"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+
+@inject SalidaService SalidaService
+@inject EstablecimientoService EstablecimientoService
+@inject ProductoService ProductoService
+@inject NavigationManager Nav
+
+<h3>@Titulo</h3>
+
+<EditForm Model="salida" OnValidSubmit="Guardar" FormName="EditarSalida">
+    <DataAnnotationsValidator />
+
+    <div>
+        <label>Fecha</label>
+        <InputDate @bind-Value="salida.Fecha" />
+    </div>
+
+    <div>
+        <label>Establecimiento</label>
+        <InputSelect class="form-select" @bind-Value="salida.id_establecimiento">
+            <option value="0">-- Seleccionar Establecimiento --</option>
+            @foreach (var e in establecimientos)
+            {
+                <option value="@e.Id">@e.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div>
+        <label>Observaciones</label>
+        <InputText @bind-Value="salida.Observacion" />
+    </div>
+
+    <div>
+        <label>Solicitante</label>
+        <InputText @bind-Value="salida.Solicitante" />
+    </div>
+
+    <hr />
+
+    <button type="button" @onclick="AgregarProducto">Agregar Producto</button>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in salida.DetalleSalida)
+            {
+                <tr>
+                    <td>
+                        <InputSelect class="form-select" @bind-Value="d.id_producto">
+                            <option value="0">-- Seleccionar Producto --</option>
+                            @foreach (var p in productos)
+                            {
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td>
+                        <InputNumber @bind-Value="d.Cantidad" />
+                    </td>
+                    <td>
+                        <button type="button" @onclick="() => EliminarProducto(d)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit">Guardar</button>
+    <button type="button" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Salida salida { get; set; } = new() { Fecha = DateOnly.FromDateTime(DateTime.Now) };
+
+    private List<Establecimiento> establecimientos { get; set; } = new();
+    private List<Producto> productos { get; set; } = new();
+
+    private string Titulo { get; set; } = "Nueva Salida";
+
+    protected override async Task OnInitializedAsync()
+    {
+        establecimientos = await EstablecimientoService.GetAllAsync();
+        productos = await ProductoService.GetAllAsync();
+
+        if (Id != null)
+        {
+            var existente = await SalidaService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                salida = existente;
+                Titulo = $"Editar Salida > {salida.Id}";
+            }
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (Id == null)
+            await SalidaService.CreateAsync(salida);
+        else
+            await SalidaService.UpdateAsync(salida);
+
+        Nav.NavigateTo("/salidas");
+    }
+
+    private void AgregarProducto()
+    {
+        salida.DetalleSalida.Add(new DetalleSalida());
+    }
+
+    private void EliminarProducto(DetalleSalida d)
+    {
+        salida.DetalleSalida.Remove(d);
+    }
+
+    private void Volver() => Nav.NavigateTo("/salidas");
+}

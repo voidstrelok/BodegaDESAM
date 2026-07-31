@@ -1,0 +1,63 @@
+﻿@page "/modelos"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+@inject ModeloService ModeloService
+@inject NavigationManager Nav
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="page-title m-0">Modelos</h3>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
+    </div>
+</div>
+
+@if (modelos == null)
+{
+    <p>Cargando...</p>
+}
+else if (modelos.Count == 0)
+{
+    <p>No hay modelos ingresados.</p>
+}
+else
+{
+    <div class="card-section p-2">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Marca</th>
+                    <th>Modelo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in modelos)
+                {
+                    <tr>
+                        <td>@m.Id</td>
+                        <td><span class="badge bg-secondary">@m.Marca?.Nombre</span></td>
+                        <td>@m.Nombre</td>
+                        <td class="text-nowrap">
+                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Editar(m.Id)">Editar</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    List<Modelo>? modelos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        modelos = await ModeloService.GetAllAsync();
+    }
+
+    void Nuevo() => Nav.NavigateTo("/modelos/nuevo");
+    void Editar(long id) => Nav.NavigateTo($"/modelos/editar/{id}");
+}

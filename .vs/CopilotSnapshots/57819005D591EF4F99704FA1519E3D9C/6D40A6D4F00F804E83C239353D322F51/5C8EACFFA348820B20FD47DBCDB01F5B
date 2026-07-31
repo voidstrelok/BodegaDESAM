@@ -1,0 +1,13 @@
+﻿@page "/"
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo("/inventario", replace: true);
+    }
+}
+
+<PageTitle>Inventario</PageTitle>
+
+<div class="text-muted">Redirigiendo a inventario...</div>

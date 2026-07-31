@@ -1,0 +1,59 @@
+﻿@page "/proveedores"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+@inject ProveedorService ProveedorService
+@inject NavigationManager Nav
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="page-title m-0">Proveedores</h3>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
+    </div>
+</div>
+
+@if (proveedores == null)
+{
+    <p>Cargando...</p>
+}
+else if (proveedores.Count == 0)
+{
+    <p>No hay proveedores.</p>
+}
+else
+{
+    <div class="card-section p-2">
+        <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in proveedores)
+            {
+                <tr>
+                    <td>@p.Id</td>
+                    <td>@p.Nombre</td>
+                    <td class="text-nowrap">
+                        <button class="btn btn-outline-primary btn-sm" @onclick='() => Nav.NavigateTo($"/proveedores/editar/{p.Id}")'>Editar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Proveedor>? proveedores;
+
+    protected override async Task OnInitializedAsync()
+    {
+        proveedores = await ProveedorService.GetAllAsync();
+    }
+
+    private void Nuevo() => Nav.NavigateTo("/proveedores/nuevo");
+}

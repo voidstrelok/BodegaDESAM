@@ -1,0 +1,87 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace BodegaDESAM.Services
+{
+    public class EntradaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public EntradaService(IDbContextFactory<PostgresDataContext> db)
+        {
+            _factory = db;
+        }
+
+        public async Task<List<Entrada>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Entrada
+                .Include(e=>e.Proveedor)
+                .Include(e=>e.DetalleEntrada)
+                .OrderBy(e => e.Id)
+                .ToListAsync();
+        }
+
+        public async Task<Entrada?> GetByIdAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Entrada
+                .Include(e => e.DetalleEntrada)
+                    .ThenInclude(d => d.Producto)
+                        .ThenInclude(p => p.Marca)
+                .Include(e => e.DetalleEntrada)
+                    .ThenInclude(d => d.Producto)
+                        .ThenInclude(p => p.CategoriaProducto)
+                .Include(e => e.DetalleEntrada)
+                    .ThenInclude(d => d.ProductoSeries)
+                .Include(e => e.Proveedor)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
+        public async Task CreateAsync(Entrada entrada)
+        {
+            if (string.IsNullOrWhiteSpace(entrada.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(entrada));
+
+            using var db = _factory.CreateDbContext();
+            db.Entrada.Add(entrada);
+            await db.SaveChangesAsync();
+        }
+
+        public Task CreateAsync(Entrada entrada, string idUsuario)
+        {
+            entrada.IdUsuario = idUsuario;
+            return CreateAsync(entrada);
+        }
+
+
+        public async Task UpdateAsync(Entrada entrada)
+        {
+            if (string.IsNullOrWhiteSpace(entrada.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(entrada));
+
+            using var db = _factory.CreateDbContext();
+            db.Entrada.Update(entrada);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<bool> DeleteAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entrada = await db.Entrada
+                .Include(e => e.DetalleEntrada)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (entrada is null)
+                return false;
+
+            if (entrada.DetalleEntrada is not null && entrada.DetalleEntrada.Count > 0)
+                db.DetalleEntrada.RemoveRange(entrada.DetalleEntrada);
+
+            db.Entrada.Remove(entrada);
+            await db.SaveChangesAsync();
+            return true;
+        }
+    }
+}

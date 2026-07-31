@@ -1,0 +1,50 @@
+﻿using BodegaDESAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+
+namespace BodegaDESAM
+{
+    public partial class PostgresDataContext : DbContext
+    {
+        public PostgresDataContext(DbContextOptions<PostgresDataContext> options) : base(options)
+        {
+        }
+
+        public virtual DbSet<Producto> Producto { get; set; }
+        public virtual DbSet<CategoriaProducto> CategoriaProducto { get; set; }
+        public virtual DbSet<Marca> Marca { get; set; }
+        public virtual DbSet<Entrada> Entrada { get; set; }
+        public virtual DbSet<DetalleEntrada> DetalleEntrada { get; set; }
+        public virtual DbSet<Proveedor> Proveedor { get; set; }
+        public virtual DbSet<Salida> Salida { get; set; }
+        public virtual DbSet<DetalleSalida> DetalleSalida { get; set; }
+        public virtual DbSet<Establecimiento> Establecimiento { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+#if DEBUG
+            optionsBuilder.LogTo(Console.WriteLine, LogLevel.Information)
+                .EnableSensitiveDataLogging()
+                .EnableDetailedErrors();
+#endif
+            base.OnConfiguring(optionsBuilder);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.HasDefaultSchema("BodegaDESAM_dev");
+
+            modelBuilder.ApplyConfiguration(new ProveedorEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new EntradaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new DetalleEntradaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new ProductoEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new CategoriaProductoEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new MarcaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new DetalleSalidaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new SalidaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new EstablecimientoEntityTypeConfiguration());
+            base.OnModelCreating(modelBuilder);
+        }
+    }
+}

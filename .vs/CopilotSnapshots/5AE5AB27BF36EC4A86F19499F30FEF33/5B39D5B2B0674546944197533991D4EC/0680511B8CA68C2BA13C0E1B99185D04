@@ -1,0 +1,150 @@
+﻿using BodegaDESAM.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Tests.Services;
+
+public class EntradaServiceTests
+{
+    sealed class TestDbContextFactory : IDbContextFactory<PostgresDataContext>
+    {
+        private readonly DbContextOptions<PostgresDataContext> _options;
+
+        public TestDbContextFactory(DbContextOptions<PostgresDataContext> options)
+        {
+            _options = options;
+        }
+
+        public PostgresDataContext CreateDbContext() => new(_options);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_IncludesProveedorAndDetalleEntrada()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase($"ent_{Guid.NewGuid():N}")
+            .Options;
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Proveedor.Add(new Proveedor { Id = 1, Nombre = "Proveedor 1" });
+            db.Producto.Add(new Producto { Id = 10, Nombre = "Producto 10" });
+
+            db.Entrada.Add(new Entrada
+            {
+                Id = 100,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow),
+                id_proveedor = 1,
+                NDocumento = "DOC-1",
+                Observacion = "Obs",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 10, Cantidad = 2, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var service = new EntradaService(new TestDbContextFactory(options));
+
+        var result = await service.GetAllAsync();
+
+        var entrada = Assert.Single(result);
+        Assert.NotNull(entrada.Proveedor);
+        Assert.Equal("Proveedor 1", entrada.Proveedor.Nombre);
+
+        Assert.NotNull(entrada.DetalleEntrada);
+        Assert.Single(entrada.DetalleEntrada);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_IncludesProveedor_DetalleEntrada_AndProducto()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase($"ent_{Guid.NewGuid():N}")
+            .Options;
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Proveedor.Add(new Proveedor { Id = 1, Nombre = "Proveedor 1" });
+            db.Producto.Add(new Producto { Id = 10, Nombre = "Producto 10" });
+
+            db.Entrada.Add(new Entrada
+            {
+                Id = 101,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow),
+                id_proveedor = 1,
+                NDocumento = "DOC-2",
+                Observacion = "Obs",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 10, Cantidad = 5, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var service = new EntradaService(new TestDbContextFactory(options));
+
+        var entrada = await service.GetByIdAsync(101);
+
+        Assert.NotNull(entrada);
+        Assert.NotNull(entrada!.Proveedor);
+        Assert.Equal("Proveedor 1", entrada.Proveedor.Nombre);
+
+        var detalle = Assert.Single(entrada.DetalleEntrada);
+        Assert.NotNull(detalle.Producto);
+        Assert.Equal("Producto 10", detalle.Producto.Nombre);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenNotFound_ReturnsNull()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase($"ent_{Guid.NewGuid():N}")
+            .Options;
+
+        var service = new EntradaService(new TestDbContextFactory(options));
+
+        var entrada = await service.GetByIdAsync(999);
+
+        Assert.Null(entrada);
+    }
+
+    [Fact]
+    public async Task CreateAsync_PersistsEntradaAndDetalle()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase($"ent_{Guid.NewGuid():N}")
+            .Options;
+
+        await using (var seed = new PostgresDataContext(options))
+        {
+            seed.Proveedor.Add(new Proveedor { Id = 1, Nombre = "Proveedor 1" });
+            seed.Producto.Add(new Producto { Id = 10, Nombre = "Producto 10" });
+            await seed.SaveChangesAsync();
+        }
+
+        var service = new EntradaService(new TestDbContextFactory(options));
+
+        var nueva = new Entrada
+        {
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow),
+            id_proveedor = 1,
+            NDocumento = "DOC-3",
+            Observacion = "Obs",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() { id_producto = 10, Cantidad = 1, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+            }
+        };
+
+        await service.CreateAsync(nueva);
+
+        await using var db = new PostgresDataContext(options);
+        var entradas = await db.Entrada.Include(e => e.DetalleEntrada).ToListAsync();
+        Assert.Single(entradas);
+        Assert.Single(entradas[0].DetalleEntrada);
+    }
+}

@@ -1,0 +1,43 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    /// <inheritdoc />
+    public partial class MoveModeloFromProductoToDetalleEntrada : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "producto");
+
+            migrationBuilder.AddColumn<string>(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                type: "character varying",
+                maxLength: 100,
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.AddColumn<string>(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                type: "character varying",
+                nullable: true);
+        }
+    }
+}

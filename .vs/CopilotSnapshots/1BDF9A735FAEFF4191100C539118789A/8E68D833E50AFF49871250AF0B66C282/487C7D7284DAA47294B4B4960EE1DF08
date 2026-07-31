@@ -1,0 +1,145 @@
+﻿@page "/entradas/nuevo"
+@page "/entradas/editar/{Id:long}"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+
+@inject EntradaService EntradaService
+@inject ProveedorService ProveedorService
+@inject ProductoService ProductoService
+@inject NavigationManager Nav
+
+<h3>@Titulo</h3>
+
+<EditForm Model="entrada" OnValidSubmit="Guardar" FormName="EditarEntrada">
+    <DataAnnotationsValidator />
+    <div>
+        <label>Fecha</label>
+        <InputDate @bind-Value="entrada.Fecha" />
+        <ValidationMessage For="@(() => entrada.Fecha)" />
+    </div>
+
+    <div>
+        <label>Proveedor</label>
+        <InputSelect class="form-select" @bind-Value="entrada.id_proveedor">
+            <option value="0">-- Seleccionar Proveedor --</option>
+            @foreach (var proveedor in proveedores)
+            {
+                <option value="@proveedor.Id">@proveedor.Nombre</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="@(() => entrada.id_proveedor)" />
+    </div>
+    
+    <div>
+        <label>N° Documento</label>
+        <InputText @bind-Value="entrada.NDocumento" />
+        <ValidationMessage For="@(() => entrada.NDocumento)" />
+    </div>
+    
+    <div>
+        <label>Observaciones</label>
+        <InputText @bind-Value="entrada.Observacion" />
+        <ValidationMessage For="@(() => entrada.Observacion)" />
+    </div>
+
+    <hr />
+    <td>
+        <button type="button" @onclick="() => AgregarProducto()">Agregar Producto</button>
+    </td>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Cantidad</th>
+                <th>Fecha Vencimiento</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var detalle in entrada.DetalleEntrada)
+            {
+                <tr>
+                    <td>
+                        <InputSelect class="form-select" @bind-Value="detalle.id_producto">
+                            <option value="0">-- Seleccionar Producto --</option>
+                            @foreach(var p in productos){
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td>
+                        <InputNumber @bind-Value="detalle.Cantidad" />
+                        <ValidationMessage For="@(() => detalle.Cantidad)" />
+                    </td>
+                    <td>
+                        <InputDate @bind-Value="detalle.FechaVencimiento" />
+                        <ValidationMessage For="@(() => detalle.FechaVencimiento)" />
+                    </td>
+                    <td>
+                        <button type="button" @onclick="() => EliminarProducto(detalle)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit">Guardar</button>
+    <button type="button" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    [Parameter] 
+    public long? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    Entrada entrada { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Proveedor> proveedores { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Producto> productos { get; set; } = new();
+    string Titulo { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        proveedores = await ProveedorService.GetAllAsync();
+        productos = await ProductoService.GetAllAsync();
+        if (Id != null)
+        {
+            var existente = await EntradaService.GetByIdAsync((int)Id);
+            if (existente != null)
+            {
+                entrada = existente;
+                Titulo += $"Editar Entrada > {Id.ToString()}-{entrada.Proveedor.Nombre}-{entrada.NDocumento}";
+            }
+        }
+        else
+        {
+            Titulo = "Nueva Entrada";
+        }
+    }
+
+    async void Guardar()
+    {
+        if (Id == null)
+        {
+            await EntradaService.CreateAsync(entrada);
+        }
+        else
+            await EntradaService.UpdateAsync(entrada);
+
+        Nav.NavigateTo("/entradas");
+    }
+    void AgregarProducto()
+    {
+        entrada.DetalleEntrada.Add(new DetalleEntrada());
+    }
+
+    void EliminarProducto(DetalleEntrada detalle)
+    {
+        entrada.DetalleEntrada.Remove(detalle);
+    }
+
+    void Volver() => Nav.NavigateTo("/entradas");
+
+}

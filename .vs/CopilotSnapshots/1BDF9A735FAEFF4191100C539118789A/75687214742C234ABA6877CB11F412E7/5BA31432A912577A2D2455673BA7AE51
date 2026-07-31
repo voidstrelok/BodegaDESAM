@@ -1,0 +1,58 @@
+﻿@page "/proveedores/nuevo"
+@page "/proveedores/editar/{Id:int}"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+
+@inject ProveedorService ProveedorService
+@inject NavigationManager Nav
+
+<h3>@Titulo</h3>
+
+<EditForm Model="proveedor" OnValidSubmit="Guardar" FormName="EditarProveedor">
+    <DataAnnotationsValidator />
+
+    <div>
+        <label>Nombre</label>
+        <InputText class="form-control" @bind-Value="proveedor.Nombre" />
+        <ValidationMessage For="@(() => proveedor.Nombre)" />
+    </div>
+
+    <button type="submit">Guardar</button>
+    <button type="button" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Proveedor proveedor { get; set; } = new();
+
+    private string Titulo { get; set; } = "Nuevo Proveedor";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != null)
+        {
+            var existente = await ProveedorService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                proveedor = existente;
+                Titulo = $"Editar Proveedor > {proveedor.Id}";
+            }
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (Id == null)
+            await ProveedorService.CreateAsync(proveedor);
+        else
+            await ProveedorService.UpdateAsync(proveedor);
+
+        Nav.NavigateTo("/proveedores");
+    }
+
+    private void Volver() => Nav.NavigateTo("/proveedores");
+}

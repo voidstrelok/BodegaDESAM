@@ -1,0 +1,61 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace BodegaDESAM.Services
+{
+    public class ModeloService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public ModeloService(IDbContextFactory<PostgresDataContext> db)
+        {
+            _factory = db;
+        }
+
+        public async Task<List<Modelo>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Modelo
+                .OrderBy(m => m.Nombre)
+                .ToListAsync();
+        }
+
+        public async Task<Modelo?> GetByIdAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Modelo.FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public async Task CreateAsync(Modelo modelo)
+        {
+            using var db = _factory.CreateDbContext();
+
+            modelo.Nombre = (modelo.Nombre ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(modelo.Nombre))
+                throw new InvalidOperationException("El nombre es obligatorio.");
+
+            var existe = await db.Modelo.AnyAsync(m => m.Nombre.ToLower() == modelo.Nombre.ToLower());
+            if (existe)
+                throw new InvalidOperationException("Ya existe un modelo con ese nombre.");
+
+            db.Modelo.Add(modelo);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task UpdateAsync(Modelo modelo)
+        {
+            using var db = _factory.CreateDbContext();
+
+            modelo.Nombre = (modelo.Nombre ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(modelo.Nombre))
+                throw new InvalidOperationException("El nombre es obligatorio.");
+
+            var existe = await db.Modelo.AnyAsync(m => m.Id != modelo.Id && m.Nombre.ToLower() == modelo.Nombre.ToLower());
+            if (existe)
+                throw new InvalidOperationException("Ya existe un modelo con ese nombre.");
+
+            db.Modelo.Update(modelo);
+            await db.SaveChangesAsync();
+        }
+    }
+}

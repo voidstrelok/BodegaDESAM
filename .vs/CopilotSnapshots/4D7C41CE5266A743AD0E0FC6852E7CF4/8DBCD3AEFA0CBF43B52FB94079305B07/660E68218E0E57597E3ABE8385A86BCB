@@ -1,0 +1,100 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    /// <inheritdoc />
+    public partial class MoveModeloFromProductoToDetalleEntrada : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            // Agregar columna en detalle_entrada si no existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev'
+                        AND table_name = 'detalle_entrada'
+                        AND column_name = 'modelo'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""detalle_entrada"" 
+                        ADD COLUMN modelo character varying(100) NULL;
+                    END IF;
+                END $$;
+            ");
+
+            // Copiar modelo desde producto a detalle_entrada (si producto.modelo existe)
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev'
+                        AND table_name = 'producto'
+                        AND column_name = 'modelo'
+                    ) THEN
+                        UPDATE ""BodegaDESAM_dev"".""detalle_entrada"" de
+                        SET modelo = p.modelo
+                        FROM ""BodegaDESAM_dev"".""producto"" p
+                        WHERE de.id_producto = p.id
+                        AND de.modelo IS NULL;
+                    END IF;
+                END $$;
+            ");
+
+            // Eliminar columna de producto si existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev'
+                        AND table_name = 'producto'
+                        AND column_name = 'modelo'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""producto"" 
+                        DROP COLUMN modelo;
+                    END IF;
+                END $$;
+            ");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            // Revertir: agregar columna en producto
+            migrationBuilder.AddColumn<string>(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                type: "character varying",
+                nullable: true);
+
+            // Copiar el primer modelo encontrado desde detalle_entrada a producto
+            migrationBuilder.Sql(@"
+                UPDATE ""BodegaDESAM_dev"".""producto"" p
+                SET modelo = (
+                    SELECT de.modelo
+                    FROM ""BodegaDESAM_dev"".""detalle_entrada"" de
+                    WHERE de.id_producto = p.id
+                    AND de.modelo IS NOT NULL
+                    LIMIT 1
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM ""BodegaDESAM_dev"".""detalle_entrada"" de2
+                    WHERE de2.id_producto = p.id
+                    AND de2.modelo IS NOT NULL
+                );
+            ");
+
+            // Quitar columna de detalle_entrada
+            migrationBuilder.DropColumn(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+        }
+    }
+}

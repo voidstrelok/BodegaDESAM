@@ -1,0 +1,62 @@
+﻿using BodegaDESAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+
+namespace BodegaDESAM
+{
+    public class DetalleSalidaEntityTypeConfiguration : IEntityTypeConfiguration<DetalleSalida>
+    {
+        public void Configure(EntityTypeBuilder<DetalleSalida> builder)
+        {
+            builder
+                .HasKey(x => x.Id);
+
+            builder
+                .HasOne(x => x.Salida)
+                .WithMany(x => x.DetalleSalida)
+                .HasForeignKey(x => x.id_salida)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.Producto)
+                .WithMany(x => x.DetalleSalida)
+                .HasForeignKey(x => x.id_producto)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.Marca)
+                .WithMany()
+                .HasForeignKey(x => x.id_marca)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.Modelo)
+                .WithMany()
+                .HasForeignKey(x => x.id_modelo)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.Lote)
+                .WithMany(x => x.DetalleSalidas)
+                .HasForeignKey(x => x.id_lote)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .Property(x => x.Id)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("id")
+                .HasPrecision(32, 0)
+                .HasDefaultValueSql("nextval('\"BodegaDESAM_dev\".detalle_salida_id_seq'::regclass)");
+
+            builder
+                .Property(x => x.Cantidad)
+                .HasColumnName("cantidad")
+                .HasPrecision(32, 0);
+
+            builder
+                .ToTable("detalle_salida", "BodegaDESAM_dev");
+        }
+    }
+}

@@ -1,0 +1,37 @@
+@page "/salidas"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Public)]
+
+@using BodegaDESAM.Services
+@inject SalidaService SalidaService
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <div><h3 class="page-title m-0">Salidas</h3><p class="page-subtitle mb-0">Despachos registrados desde bodega.</p></div>
+    <AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button type="button" class="btn btn-primary" @onclick="Nuevo"><i class="bi bi-plus-lg me-1"></i>Nueva salida</button></Authorized></AuthorizeView>
+</div>
+
+@if (salidas == null) { <p>Cargando...</p> }
+else if (salidas.Count == 0) { <div class="empty-state">No hay salidas ingresadas.</div> }
+else
+{
+    <div class="movement-table card-section d-none d-md-block"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead><tr><th class="movement-code">Código</th><th class="movement-date">Fecha</th><th>Solicitante</th><th>Establecimiento</th><th class="d-none d-xl-table-cell">Observación</th><th class="movement-actions-col">Acciones</th></tr></thead>
+        <tbody>@foreach (var s in salidas) { <tr>
+            <td class="fw-semibold">#@s.Id</td><td class="text-nowrap">@s.Fecha.ToString("dd/MM/yyyy")</td><td><div class="text-truncate" title="@s.Solicitante">@s.Solicitante</div></td><td><div class="text-truncate" title="@s.EStablecimiento.Nombre">@s.EStablecimiento.Nombre</div></td><td class="d-none d-xl-table-cell"><div class="text-truncate" title="@s.Observacion">@s.Observacion</div></td>
+            <td><div class="movement-actions"><button class="btn btn-outline-secondary btn-sm" title="Ver detalle" aria-label="Ver detalle de salida @s.Id" @onclick="() => Ver(s.Id)"><i class="bi bi-eye"></i></button><a class="btn btn-outline-info btn-sm" href="@($"reports/salidas/{s.Id}.pdf")" target="_blank" title="Descargar PDF" aria-label="Descargar PDF de salida @s.Id"><i class="bi bi-file-earmark-pdf"></i></a><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button class="btn btn-outline-primary btn-sm" title="Editar" aria-label="Editar salida @s.Id" @onclick="() => Editar(s.Id)"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger btn-sm" title="Eliminar" aria-label="Eliminar salida @s.Id" @onclick="() => Eliminar(s.Id)"><i class="bi bi-trash"></i></button></Authorized></AuthorizeView></div></td>
+        </tr> }</tbody>
+    </table></div></div>
+    <div class="movement-cards d-md-none">@foreach (var s in salidas) { <article class="movement-card card-section"><div class="movement-card-header"><div><span class="movement-kind">Salida</span><div class="fw-semibold">#@s.Id</div></div><time class="text-muted small">@s.Fecha.ToString("dd/MM/yyyy")</time></div><dl class="movement-card-data"><div><dt>Solicitante</dt><dd>@s.Solicitante</dd></div><div><dt>Establecimiento</dt><dd>@s.EStablecimiento.Nombre</dd></div><div><dt>Bodega</dt><dd>@s.Bodega.Nombre</dd></div></dl>@if (!string.IsNullOrWhiteSpace(s.Observacion)) { <p class="movement-note">@s.Observacion</p> }<div class="movement-card-actions"><button class="btn btn-outline-secondary" @onclick="() => Ver(s.Id)">Ver detalle</button><a class="btn btn-outline-info" href="@($"reports/salidas/{s.Id}.pdf")" target="_blank" aria-label="PDF"><i class="bi bi-file-earmark-pdf"></i></a><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button class="btn btn-outline-primary" @onclick="() => Editar(s.Id)" aria-label="Editar"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger" @onclick="() => Eliminar(s.Id)" aria-label="Eliminar"><i class="bi bi-trash"></i></button></Authorized></AuthorizeView></div></article> }</div>
+}
+
+@if (MostrarConfirmEliminar) { <div class="modal fade show d-block" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirmar eliminación</h5><button class="btn-close" @onclick="CancelarEliminar"></button></div><div class="modal-body">¿Eliminar la salida #@IdEliminar?</div><div class="modal-footer"><button class="btn btn-secondary" @onclick="CancelarEliminar">Cancelar</button><button class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button></div></div></div></div><div class="modal-backdrop fade show"></div> }
+
+@code {
+    private List<Salida>? salidas; private bool MostrarConfirmEliminar; private long IdEliminar;
+    protected override async Task OnInitializedAsync() => salidas = await SalidaService.GetAllAsync();
+    private void Nuevo() => Nav.NavigateTo("/salidas/nuevo"); private void Ver(int id) => Nav.NavigateTo($"/salidas/{id}"); private void Editar(int id) => Nav.NavigateTo($"/salidas/editar/{id}");
+    private Task Eliminar(long id) { IdEliminar = id; MostrarConfirmEliminar = true; return Task.CompletedTask; }
+    private async Task ConfirmarEliminar() { MostrarConfirmEliminar = false; if (await SalidaService.DeleteAsync(IdEliminar)) salidas = await SalidaService.GetAllAsync(); }
+    private void CancelarEliminar() { MostrarConfirmEliminar = false; IdEliminar = 0; }
+}

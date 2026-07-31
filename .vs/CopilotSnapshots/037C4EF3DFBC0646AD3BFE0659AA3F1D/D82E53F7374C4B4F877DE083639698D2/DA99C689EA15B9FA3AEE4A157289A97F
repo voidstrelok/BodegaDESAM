@@ -1,0 +1,99 @@
+﻿@rendermode InteractiveServer
+@using BodegaDESAM.Services
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@code {
+    private bool _initialized = false;
+
+    protected override void OnInitialized()
+    {
+        // Suscribirse a cambios de navegación
+        Navigation.LocationChanged += OnLocationChanged;
+
+        // Suscribirse a cambios de tema desde el servicio
+        ThemeService.OnThemeChanged += OnThemeChangedHandler;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // PRIMERA VEZ: Leer de localStorage y inicializar el ThemeService
+            await InitializeThemeFromStorage();
+            _initialized = true;
+        }
+        else
+        {
+            // RENDERS SUBSECUENTES: Aplicar el tema del servicio al DOM
+            await ApplyThemeToDOMAsync();
+        }
+    }
+
+    private async Task InitializeThemeFromStorage()
+    {
+        try
+        {
+            // Leer directamente de localStorage (fuente de verdad)
+            var isDark = await JS.InvokeAsync<bool>("loadThemePreference");
+
+            // Inicializar el servicio SIN disparar evento (para evitar loop)
+            ThemeService.SetDarkMode(isDark);
+
+            // Aplicar al DOM
+            await ApplyThemeToDOMAsync();
+
+            Console.WriteLine($"Tema inicializado desde localStorage: {(isDark ? "oscuro" : "claro")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inicializando tema: {ex.Message}");
+        }
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // En cada navegación, re-aplicar el tema del servicio
+        Console.WriteLine($"Navegación detectada: {e.Location}");
+        InvokeAsync(async () => await ApplyThemeToDOMAsync());
+    }
+
+    private void OnThemeChangedHandler()
+    {
+        // Cuando el usuario cambia el tema manualmente, aplicar al DOM
+        Console.WriteLine($"Cambio de tema desde servicio: {(ThemeService.IsDarkMode ? "oscuro" : "claro")}");
+        InvokeAsync(async () => await ApplyThemeToDOMAsync());
+    }
+
+    private async Task ApplyThemeToDOMAsync()
+    {
+        if (!_initialized) return; // No aplicar hasta que se inicialice
+
+        try
+        {
+            // Usar el ThemeService como fuente de verdad
+            if (ThemeService.IsDarkMode)
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.setAttribute('data-theme', 'dark')");
+                Console.WriteLine("Tema oscuro aplicado al DOM");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.removeAttribute('data-theme')");
+                Console.WriteLine("Tema claro aplicado al DOM");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error aplicando tema al DOM: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        ThemeService.OnThemeChanged -= OnThemeChangedHandler;
+    }
+}

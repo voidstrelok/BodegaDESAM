@@ -1,0 +1,53 @@
+﻿using BodegaDESAM;
+using BodegaDESAM.Client.Pages;
+using BodegaDESAM.Components;
+using BodegaDESAM.Services;
+using Microsoft.EntityFrameworkCore;
+using System;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
+
+//BDD
+builder.Services.AddDbContextFactory<PostgresDataContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresDataContext")));
+
+builder.Services.AddScoped<ProductoService>();
+builder.Services.AddScoped<MarcaService>();
+builder.Services.AddScoped<EntradaService>();
+builder.Services.AddScoped<ProveedorService>();
+builder.Services.AddScoped<InventarioService>();
+builder.Services.AddScoped<SalidaService>();
+builder.Services.AddScoped<EstablecimientoService>();
+
+var app = builder.Build();
+
+//
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseWebAssemblyDebugging();
+}
+else
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(BodegaDESAM.Client._Imports).Assembly);
+
+app.Run();

@@ -1,0 +1,189 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    /// <inheritdoc />
+    public partial class MoveMarcaFromProductoToDetalleEntrada : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            // Verificar si la columna id_marca ya existe en detalle_entrada
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev' 
+                        AND table_name = 'detalle_entrada' 
+                        AND column_name = 'id_marca'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""detalle_entrada"" 
+                        ADD COLUMN id_marca bigint NOT NULL DEFAULT 0;
+                    END IF;
+                END $$;
+            ");
+
+            // Migrar datos existentes si producto aún tiene id_marca
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev' 
+                        AND table_name = 'producto' 
+                        AND column_name = 'id_marca'
+                    ) THEN
+                        UPDATE ""BodegaDESAM_dev"".""detalle_entrada"" de
+                        SET id_marca = p.id_marca
+                        FROM ""BodegaDESAM_dev"".""producto"" p
+                        WHERE de.id_producto = p.id
+                        AND de.id_marca = 0;
+                    END IF;
+                END $$;
+            ");
+
+            // Crear índice si no existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_indexes 
+                        WHERE schemaname = 'BodegaDESAM_dev' 
+                        AND tablename = 'detalle_entrada' 
+                        AND indexname = 'IX_detalle_entrada_id_marca'
+                    ) THEN
+                        CREATE INDEX ""IX_detalle_entrada_id_marca"" 
+                        ON ""BodegaDESAM_dev"".""detalle_entrada"" (id_marca);
+                    END IF;
+                END $$;
+            ");
+
+            // Agregar foreign key si no existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_schema = 'BodegaDESAM_dev' 
+                        AND table_name = 'detalle_entrada' 
+                        AND constraint_name = 'FK_detalle_entrada_marca_id_marca'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""detalle_entrada"" 
+                        ADD CONSTRAINT ""FK_detalle_entrada_marca_id_marca"" 
+                        FOREIGN KEY (id_marca) 
+                        REFERENCES ""BodegaDESAM_dev"".""marca"" (id);
+                    END IF;
+                END $$;
+            ");
+
+            // Eliminar foreign key de producto si existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_schema = 'BodegaDESAM_dev' 
+                        AND table_name = 'producto' 
+                        AND constraint_name = 'FK_producto_marca_id_marca'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""producto"" 
+                        DROP CONSTRAINT ""FK_producto_marca_id_marca"";
+                    END IF;
+                END $$;
+            ");
+
+            // Eliminar índice de producto si existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_indexes 
+                        WHERE schemaname = 'BodegaDESAM_dev' 
+                        AND tablename = 'producto' 
+                        AND indexname = 'IX_producto_id_marca'
+                    ) THEN
+                        DROP INDEX ""BodegaDESAM_dev"".""IX_producto_id_marca"";
+                    END IF;
+                END $$;
+            ");
+
+            // Eliminar columna de producto si existe
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_schema = 'BodegaDESAM_dev' 
+                        AND table_name = 'producto' 
+                        AND column_name = 'id_marca'
+                    ) THEN
+                        ALTER TABLE ""BodegaDESAM_dev"".""producto"" 
+                        DROP COLUMN id_marca;
+                    END IF;
+                END $$;
+            ");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            // Revertir: primero agregar columna en producto
+            migrationBuilder.AddColumn<long>(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0L);
+
+            // Copiar la primera marca encontrada de cada producto desde detalle_entrada
+            migrationBuilder.Sql(@"
+                UPDATE ""BodegaDESAM_dev"".""producto"" p
+                SET id_marca = (
+                    SELECT de.id_marca
+                    FROM ""BodegaDESAM_dev"".""detalle_entrada"" de
+                    WHERE de.id_producto = p.id
+                    LIMIT 1
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM ""BodegaDESAM_dev"".""detalle_entrada"" de2
+                    WHERE de2.id_producto = p.id
+                );
+            ");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_producto_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                column: "id_marca");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_producto_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                column: "id_marca",
+                principalSchema: "BodegaDESAM_dev",
+                principalTable: "marca",
+                principalColumn: "id");
+
+            // Eliminar de detalle_entrada
+            migrationBuilder.DropForeignKey(
+                name: "FK_detalle_entrada_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropIndex(
+                name: "IX_detalle_entrada_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropColumn(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+        }
+    }
+}

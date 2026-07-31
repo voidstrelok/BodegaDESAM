@@ -1,0 +1,58 @@
+﻿@page "/salidas"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+@inject SalidaService SalidaService
+@inject NavigationManager Nav
+
+<h3>Salidas</h3>
+
+<button type="button" @onclick="Nuevo">Nuevo</button>
+
+@if (salidas == null)
+{
+    <p>Cargando...</p>
+}
+else if (salidas.Count == 0)
+{
+    <p>No hay salidas ingresadas.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Fecha</th>
+                <th>Establecimiento</th>
+                <th>Observación</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in salidas)
+            {
+                <tr>
+                    <td>@s.Id</td>
+                    <td>@s.Fecha</td>
+                    <td>@s.EStablecimiento.Nombre</td>
+                    <td>@s.Observacion</td>
+                    <td>
+                        <button @onclick='() => Nav.NavigateTo($"/salidas/editar/{s.Id}")'>Editar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Salida>? salidas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        salidas = await SalidaService.GetAllAsync();
+    }
+
+    private void Nuevo() => Nav.NavigateTo("/salidas/nuevo");
+}

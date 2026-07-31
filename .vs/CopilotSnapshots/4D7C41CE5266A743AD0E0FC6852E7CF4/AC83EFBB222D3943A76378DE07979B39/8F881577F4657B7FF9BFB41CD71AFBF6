@@ -1,0 +1,145 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace BodegaDESAM.Services
+{
+    public class EntradaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public EntradaService(IDbContextFactory<PostgresDataContext> db)
+        {
+            _factory = db;
+        }
+
+        public async Task<List<Entrada>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Entrada
+                .Include(e=>e.Proveedor)
+                .Include(e=>e.DetalleEntrada)
+                .OrderBy(e => e.Id)
+                .ToListAsync();
+        }
+
+        public async Task<Entrada?> GetByIdAsync(int id)
+        {
+            using var db = _factory.CreateDbContext();
+            var entrada = await db.Entrada
+                .Include(e => e.Proveedor)
+                .Include(e => e.DetalleEntrada)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (entrada is null)
+                return null;
+
+            var detalle = await db.DetalleEntrada
+                .Where(d => d.id_entrada == entrada.Id)
+                .Include(d => d.Producto)
+                    .ThenInclude(p => p.CategoriaProducto)
+                .Include(d => d.Marca)
+                .Include(d => d.Modelo)
+                .Include(d => d.ProductoSeries)
+                .ToListAsync();
+
+            if (detalle.Count == 0)
+                detalle = entrada.DetalleEntrada.ToList();
+
+            db.ChangeTracker.Clear();
+            entrada.DetalleEntrada = detalle;
+
+            return entrada;
+        }
+
+        public async Task CreateAsync(Entrada entrada)
+        {
+            if (string.IsNullOrWhiteSpace(entrada.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(entrada));
+
+            using var db = _factory.CreateDbContext();
+
+            ValidarEntrada(entrada);
+            db.Entrada.Add(entrada);
+            await db.SaveChangesAsync();
+        }
+
+        public Task CreateAsync(Entrada entrada, string idUsuario)
+        {
+            entrada.IdUsuario = idUsuario;
+            return CreateAsync(entrada);
+        }
+
+
+        public async Task UpdateAsync(Entrada entrada)
+        {
+            if (string.IsNullOrWhiteSpace(entrada.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(entrada));
+
+            using var db = _factory.CreateDbContext();
+
+            ValidarEntrada(entrada);
+            db.Entrada.Update(entrada);
+            await db.SaveChangesAsync();
+        }
+
+        private static void ValidarEntrada(Entrada entrada)
+        {
+            if (entrada.id_proveedor <= 0)
+                throw new InvalidOperationException("Debe seleccionar un proveedor.");
+
+            if (string.IsNullOrWhiteSpace(entrada.NDocumento))
+                throw new InvalidOperationException("El N° de documento es obligatorio.");
+
+            if (entrada.DetalleEntrada == null || entrada.DetalleEntrada.Count == 0)
+                throw new InvalidOperationException("Debe agregar al menos un producto al detalle.");
+
+            foreach (var d in entrada.DetalleEntrada)
+            {
+                if (d.id_producto <= 0)
+                    throw new InvalidOperationException("Debe seleccionar un producto en todas las filas del detalle.");
+
+                if (d.id_marca <= 0)
+                    throw new InvalidOperationException("Debe seleccionar una marca en todas las filas del detalle.");
+
+                if (d.id_modelo.HasValue && d.id_modelo.Value <= 0)
+                    throw new InvalidOperationException("El modelo seleccionado no es válido.");
+
+                if (d.Cantidad <= 0)
+                    throw new InvalidOperationException("La cantidad debe ser mayor a 0 en todas las filas del detalle.");
+            }
+        }
+
+        public async Task<bool> DeleteAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entrada = await db.Entrada
+                .Include(e => e.DetalleEntrada)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (entrada is null)
+                return false;
+
+            if (entrada.DetalleEntrada is not null && entrada.DetalleEntrada.Count > 0)
+            {
+                var detalleIds = entrada.DetalleEntrada.Select(d => d.Id).ToList();
+
+                var series = await db.ProductoSerie
+                    .Where(s => detalleIds.Contains(s.id_detalle_entrada))
+                    .ToListAsync();
+
+                if (series.Any(s => s.id_salida != null))
+                    throw new InvalidOperationException("No se puede eliminar la entrada porque existen series asociadas a una salida.");
+
+                if (series.Count > 0)
+                    db.ProductoSerie.RemoveRange(series);
+
+                db.DetalleEntrada.RemoveRange(entrada.DetalleEntrada);
+            }
+
+            db.Entrada.Remove(entrada);
+            await db.SaveChangesAsync();
+            return true;
+        }
+    }
+}

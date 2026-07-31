@@ -1,0 +1,139 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public sealed record MovimientoProductoDetalleDto(
+        string Tipo,
+        int IdDocumento,
+        DateTime Fecha,
+        string? Referencia,
+        string? Establecimiento,
+        long Cantidad,
+        List<string> Series);
+
+    public class InventarioDetalleService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioDetalleService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<MovimientoProductoDetalleDto>> GetMovimientosDetalleAsync(
+            int idProducto,
+            string? serieFiltro,
+            int? idEstablecimiento)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradasBase = await db.DetalleEntrada
+                .AsNoTracking()
+                .Where(d => d.id_producto == idProducto)
+                .Select(d => new
+                {
+                    DetalleEntradaId = d.Id,
+                    IdEntrada = d.id_entrada,
+                    Fecha = d.Entrada.Fecha.ToDateTime(TimeOnly.MinValue),
+                    Referencia = d.Entrada.NDocumento,
+                    Cantidad = (long)d.Cantidad,
+                })
+                .ToListAsync();
+
+            var detalleEntradaIds = entradasBase.Select(x => x.DetalleEntradaId).ToList();
+
+            var seriesEntrada = await db.ProductoSerie
+                .AsNoTracking()
+                .Where(s => s.id_producto == idProducto && detalleEntradaIds.Contains(s.id_detalle_entrada))
+                .Select(s => new { s.id_detalle_entrada, s.Serie })
+                .ToListAsync();
+
+            var seriesPorDetalleEntrada = seriesEntrada
+                .GroupBy(x => x.id_detalle_entrada)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Serie).OrderBy(x => x).ToList());
+
+            var salidasBaseQ = db.DetalleSalida
+                .AsNoTracking()
+                .Where(d => d.id_producto == idProducto)
+                .Select(d => new
+                {
+                    IdSalida = d.id_salida,
+                    Fecha = d.Salida.Fecha.ToDateTime(TimeOnly.MinValue),
+                    Referencia = d.Salida.Solicitante,
+                    Establecimiento = d.Salida.EStablecimiento.Nombre,
+                    IdEstablecimiento = d.Salida.id_establecimiento,
+                    Cantidad = (long)d.Cantidad,
+                });
+
+            if (idEstablecimiento != null)
+                salidasBaseQ = salidasBaseQ.Where(x => x.IdEstablecimiento == idEstablecimiento);
+
+            var salidasBase = await salidasBaseQ.ToListAsync();
+
+            var salidaIds = salidasBase.Select(x => x.IdSalida).Distinct().ToList();
+
+            var seriesSalidaQ = db.ProductoSerie
+                .AsNoTracking()
+                .Where(s => s.id_producto == idProducto && s.id_salida != null && salidaIds.Contains(s.id_salida.Value));
+
+            if (!string.IsNullOrWhiteSpace(serieFiltro))
+                seriesSalidaQ = seriesSalidaQ.Where(s => EF.Functions.ILike(s.Serie, $"%{serieFiltro}%"));
+
+            var seriesSalida = await seriesSalidaQ
+                .Select(s => new { IdSalida = s.id_salida!.Value, s.Serie })
+                .ToListAsync();
+
+            var seriesPorSalida = seriesSalida
+                .GroupBy(x => x.IdSalida)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Serie).OrderBy(x => x).ToList());
+
+            var result = new List<MovimientoProductoDetalleDto>();
+
+            foreach (var e in entradasBase)
+            {
+                var series = seriesPorDetalleEntrada.TryGetValue(e.DetalleEntradaId, out var se)
+                    ? se
+                    : new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(serieFiltro))
+                {
+                    series = series.Where(s => s.Contains(serieFiltro, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (series.Count == 0) continue;
+                }
+
+                result.Add(new MovimientoProductoDetalleDto(
+                    "Entrada",
+                    e.IdEntrada,
+                    e.Fecha,
+                    e.Referencia,
+                    null,
+                    e.Cantidad,
+                    series));
+            }
+
+            foreach (var s in salidasBase)
+            {
+                var series = seriesPorSalida.TryGetValue(s.IdSalida, out var ss)
+                    ? ss
+                    : new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(serieFiltro) && series.Count == 0)
+                    continue;
+
+                result.Add(new MovimientoProductoDetalleDto(
+                    "Salida",
+                    s.IdSalida,
+                    s.Fecha,
+                    s.Referencia,
+                    s.Establecimiento,
+                    -1 * s.Cantidad,
+                    series));
+            }
+
+            return result
+                .OrderByDescending(x => x.Fecha)
+                .ThenByDescending(x => x.IdDocumento)
+                .ToList();
+        }
+    }
+}

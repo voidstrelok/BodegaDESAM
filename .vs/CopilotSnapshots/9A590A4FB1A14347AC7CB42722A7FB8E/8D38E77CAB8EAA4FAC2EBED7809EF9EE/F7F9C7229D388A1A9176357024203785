@@ -1,0 +1,56 @@
+﻿@page "/marcas/nuevo"
+@page "/marcas/editar/{Id:int}"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+
+@inject MarcaService MarcaService
+@inject NavigationManager Nav
+
+<h3>@Titulo</h3>
+
+<EditForm Model="marca" OnValidSubmit="Guardar" FormName="EditarMarca">
+    <DataAnnotationsValidator />
+    <div>
+        <label>Nombre</label>
+        <InputText @bind-Value="marca.Nombre" />
+        <ValidationMessage For="@(() => marca.Nombre)" />
+    </div>
+
+    <button type="submit">Guardar</button>
+    <button type="button" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    [Parameter] 
+    public long? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    Marca marca { get; set; } = new();
+
+    string Titulo => Id == null ? "Nueva Marca" : "Editar Marca";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != null)
+        {
+            var existente = await MarcaService.GetByIdAsync((long)Id);
+            if (existente != null)
+                marca = existente;
+        }
+    }
+
+    async void Guardar()
+    {
+        if (Id == null)
+        {
+            await MarcaService.CreateAsync(marca);
+        }
+        else
+            await MarcaService.UpdateAsync(marca);
+
+        Nav.NavigateTo("/marcas");
+    }
+
+    void Volver() => Nav.NavigateTo("/marcas");
+}

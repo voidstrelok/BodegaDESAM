@@ -1,0 +1,23 @@
+﻿@page "/logout"
+@rendermode InteractiveServer
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>Logout</PageTitle>
+
+<div class="text-muted">Cerrando sesión...</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Http.PostAsync("/logout", content: null);
+        }
+        finally
+        {
+            Nav.NavigateTo("/login", replace: true);
+        }
+    }
+}

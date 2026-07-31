@@ -1,0 +1,116 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public sealed record MovimientoProductoDetalleDto(
+        string Tipo,
+        int IdDocumento,
+        DateTime Fecha,
+        string? Referencia,
+        string? Establecimiento,
+        long Cantidad,
+        List<string> Series);
+
+    public class InventarioDetalleService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioDetalleService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<MovimientoProductoDetalleDto>> GetMovimientosDetalleAsync(
+            int idProducto,
+            string? serieFiltro,
+            int? idEstablecimiento)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradas = await db.DetalleEntrada
+                .AsNoTracking()
+                .Where(d => d.id_producto == idProducto)
+                .Select(d => new
+                {
+                    IdEntrada = d.id_entrada,
+                    Fecha = d.Entrada.Fecha.ToDateTime(TimeOnly.MinValue),
+                    Referencia = d.Entrada.NDocumento,
+                    Cantidad = (long)d.Cantidad,
+                    Series = db.ProductoSerie
+                        .AsNoTracking()
+                        .Where(s => s.id_detalle_entrada == d.Id)
+                        .Select(s => s.Serie)
+                        .ToList()
+                })
+                .ToListAsync();
+
+            var salidasQ = db.DetalleSalida
+                .AsNoTracking()
+                .Where(d => d.id_producto == idProducto)
+                .Select(d => new
+                {
+                    IdSalida = d.id_salida,
+                    Fecha = d.Salida.Fecha.ToDateTime(TimeOnly.MinValue),
+                    Referencia = d.Salida.Solicitante,
+                    Establecimiento = d.Salida.EStablecimiento.Nombre,
+                    IdEstablecimiento = d.Salida.id_establecimiento,
+                    Cantidad = (long)d.Cantidad,
+                    Series = db.ProductoSerie
+                        .AsNoTracking()
+                        .Where(s => s.id_salida == d.id_salida && s.id_producto == idProducto)
+                        .Select(s => s.Serie)
+                        .ToList()
+                });
+
+            if (idEstablecimiento != null)
+                salidasQ = salidasQ.Where(x => x.IdEstablecimiento == idEstablecimiento);
+
+            var salidas = await salidasQ.ToListAsync();
+
+            var result = new List<MovimientoProductoDetalleDto>();
+
+            foreach (var e in entradas)
+            {
+                var series = e.Series ?? new List<string>();
+                if (!string.IsNullOrWhiteSpace(serieFiltro))
+                {
+                    series = series.Where(s => s.Contains(serieFiltro, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (series.Count == 0) continue;
+                }
+
+                result.Add(new MovimientoProductoDetalleDto(
+                    "Entrada",
+                    e.IdEntrada,
+                    e.Fecha,
+                    e.Referencia,
+                    null,
+                    e.Cantidad,
+                    series));
+            }
+
+            foreach (var s in salidas)
+            {
+                var series = s.Series ?? new List<string>();
+                if (!string.IsNullOrWhiteSpace(serieFiltro))
+                {
+                    series = series.Where(x => x.Contains(serieFiltro, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (series.Count == 0) continue;
+                }
+
+                result.Add(new MovimientoProductoDetalleDto(
+                    "Salida",
+                    s.IdSalida,
+                    s.Fecha,
+                    s.Referencia,
+                    s.Establecimiento,
+                    -1 * s.Cantidad,
+                    series));
+            }
+
+            return result
+                .OrderByDescending(x => x.Fecha)
+                .ThenByDescending(x => x.IdDocumento)
+                .ToList();
+        }
+    }
+}

@@ -1,0 +1,73 @@
+﻿@rendermode InteractiveServer
+@using BodegaDESAM.Services
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@implements IDisposable
+
+@code {
+    private bool _isInitialized = false;
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += ApplyThemeToDOM;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // IMPORTANTE: Sincronizar en CADA render, no solo el primero
+        // Esto asegura que al navegar entre páginas el tema se aplique
+        if (!_isInitialized)
+        {
+            await SynchronizeTheme();
+            _isInitialized = true;
+        }
+    }
+
+    private async Task SynchronizeTheme()
+    {
+        try
+        {
+            // Leer el estado actual del DOM (que fue aplicado por theme-manager.js)
+            var isDark = await JS.InvokeAsync<bool>("isDarkMode");
+
+            // Actualizar el servicio
+            ThemeService.SetDarkMode(isDark);
+
+            // Asegurar que el DOM tenga el atributo correcto
+            await ApplyThemeToDOMAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sincronizando tema: {ex.Message}");
+        }
+    }
+
+    private void ApplyThemeToDOM()
+    {
+        _ = ApplyThemeToDOMAsync();
+    }
+
+    private async Task ApplyThemeToDOMAsync()
+    {
+        try
+        {
+            if (ThemeService.IsDarkMode)
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.setAttribute('data-theme', 'dark')");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.removeAttribute('data-theme')");
+            }
+        }
+        catch
+        {
+            // Ignorar errores de JS
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= ApplyThemeToDOM;
+    }
+}

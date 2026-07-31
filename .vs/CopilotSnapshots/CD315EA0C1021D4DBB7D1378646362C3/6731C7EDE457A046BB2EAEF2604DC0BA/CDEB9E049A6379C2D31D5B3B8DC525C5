@@ -1,0 +1,327 @@
+﻿@page "/salidas/nuevo"
+@page "/salidas/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+
+@inject SalidaService SalidaService
+@inject EstablecimientoService EstablecimientoService
+@inject ProductoService ProductoService
+@inject ProductoSerieService ProductoSerieService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+<EditForm Model="salida" OnValidSubmit="Guardar" FormName="EditarSalida">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    @if (!string.IsNullOrWhiteSpace(ErrorGuardar))
+    {
+        <div class="alert alert-danger py-2" role="alert">
+            @ErrorGuardar
+        </div>
+    }
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label">Fecha</label>
+                <InputDate class="form-control" @bind-Value="salida.Fecha" />
+            </div>
+
+            <div class="col-12 col-md-5">
+                <label class="form-label">Establecimiento</label>
+                <InputSelect class="form-select" @bind-Value="salida.id_establecimiento">
+                    <option value="0">-- Seleccionar Establecimiento --</option>
+                    @foreach (var e in establecimientos)
+                    {
+                        <option value="@e.Id">@e.Nombre</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => salida.id_establecimiento" class="text-danger" />
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">Solicitante</label>
+                <InputText class="form-control" @bind-Value="salida.Solicitante" />
+                <ValidationMessage For="() => salida.Solicitante" class="text-danger" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Observaciones</label>
+                <InputText class="form-control" @bind-Value="salida.Observacion" />
+                <ValidationMessage For="() => salida.Observacion" class="text-danger" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h6 class="m-0">Detalle</h6>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AgregarProducto">Agregar Producto</button>
+    </div>
+
+    <div class="card-section p-2 mb-3">
+        <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Series</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in salida.DetalleSalida)
+            {
+                <tr>
+                    <td>
+                        <InputSelect class="form-select" @bind-Value="d.id_producto" @onchange="(e) => OnProductoChangedAsync(d, e)">
+                            <option value="0">-- Seleccionar Producto --</option>
+                            @foreach (var p in productos)
+                            {
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => d.id_producto" class="text-danger" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control" @bind-Value="d.Cantidad" />
+                        <ValidationMessage For="() => d.Cantidad" class="text-danger" />
+                    </td>
+                    <td style="min-width: 260px;">
+                        @if (d.id_producto <= 0)
+                        {
+                            <span class="text-muted small">Seleccione un producto</span>
+                        }
+                        else if (!SeriesDisponiblesPorDetalle.TryGetValue(d, out var disponibles))
+                        {
+                            <span class="text-muted small">(cargando...)</span>
+                        }
+                        else if (disponibles.Count == 0)
+                        {
+                            <span class="text-muted small">(sin series disponibles)</span>
+                        }
+                        else
+                        {
+                            <select class="form-select form-select-sm" multiple size="3" @ref="SeriesSelectRefs[d]"
+                                    @onchange="() => OnSeriesChangedAsync(d)">
+                                @foreach (var s in disponibles)
+                                {
+                                    <option value="@s" selected="@(SeriesSeleccionadasPorDetalle.TryGetValue(d, out var selectedSet) && selectedSet.Contains(s, StringComparer.OrdinalIgnoreCase))">@s</option>
+                                }
+                            </select>
+                            <div class="text-muted small mt-1">
+                                Seleccionadas: @((SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) ? sel.Count : 0)) / @d.Cantidad
+                            </div>
+                        }
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => EliminarProducto(d)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Salida salida { get; set; } = new() { Fecha = DateOnly.FromDateTime(DateTime.Now) };
+
+    private List<Establecimiento> establecimientos { get; set; } = new();
+    private List<Producto> productos { get; set; } = new();
+
+    private string Titulo { get; set; } = "Nueva Salida";
+
+    private string? ErrorGuardar;
+
+    private Dictionary<DetalleSalida, List<string>> SeriesDisponiblesPorDetalle { get; set; } = new();
+    private Dictionary<DetalleSalida, HashSet<string>> SeriesSeleccionadasPorDetalle { get; set; } = new();
+    private Dictionary<DetalleSalida, ElementReference> SeriesSelectRefs { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        establecimientos = await EstablecimientoService.GetAllAsync();
+        productos = await ProductoService.GetAllAsync();
+
+        if (Id != null)
+        {
+            var existente = await SalidaService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                salida = existente;
+                Titulo = $"Editar Salida > {salida.Id}";
+            }
+        }
+
+        await InicializarSeriesAsync();
+    }
+
+    private async Task InicializarSeriesAsync()
+    {
+        SeriesDisponiblesPorDetalle.Clear();
+        SeriesSeleccionadasPorDetalle.Clear();
+
+        foreach (var d in salida.DetalleSalida)
+        {
+            if (d.id_producto > 0)
+                await CargarSeriesDisponiblesAsync(d);
+        }
+
+        if (Id != null)
+        {
+            foreach (var d in salida.DetalleSalida)
+            {
+                if (d.id_producto <= 0)
+                    continue;
+
+                var series = (await ProductoSerieService.GetSeriesPorSalidaAsync(Id.Value))
+                    .Where(x => x.id_producto == d.id_producto)
+                    .Select(x => x.Serie)
+                    .ToList();
+
+                if (series.Count > 0)
+                    SeriesSeleccionadasPorDetalle[d] = new HashSet<string>(series, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    private async Task CargarSeriesDisponiblesAsync(DetalleSalida d)
+    {
+        if (d.id_producto <= 0)
+            return;
+
+        var disponibles = await ProductoSerieService.GetDisponiblesAsync(d.id_producto);
+
+        if (Id != null && SeriesSeleccionadasPorDetalle.TryGetValue(d, out var selExistentes) && selExistentes.Count > 0)
+        {
+            disponibles = disponibles
+                .Concat(selExistentes)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        SeriesDisponiblesPorDetalle[d] = disponibles;
+    }
+
+    private async Task OnProductoChangedAsync(DetalleSalida d, ChangeEventArgs e)
+    {
+        ErrorGuardar = null;
+
+        SeriesDisponiblesPorDetalle.Remove(d);
+        SeriesSeleccionadasPorDetalle.Remove(d);
+
+        if (d.id_producto > 0)
+            await CargarSeriesDisponiblesAsync(d);
+    }
+
+    private async Task OnSeriesChangedAsync(DetalleSalida d)
+    {
+        ErrorGuardar = null;
+
+        if (!SeriesSelectRefs.TryGetValue(d, out var el))
+            return;
+
+        var selected = await JS.InvokeAsync<string[]>("bodega.getSelectedValues", el);
+        SeriesSeleccionadasPorDetalle[d] = new HashSet<string>(selected ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task Guardar()
+    {
+        ErrorGuardar = null;
+
+        if (salida.DetalleSalida.Count == 0)
+        {
+            ErrorGuardar = "Debe agregar al menos un producto al detalle.";
+            return;
+        }
+
+        foreach (var d in salida.DetalleSalida)
+        {
+            if (d.id_producto <= 0)
+            {
+                ErrorGuardar = "Debe seleccionar un producto en todas las filas del detalle.";
+                return;
+            }
+
+            if (d.Cantidad <= 0)
+            {
+                ErrorGuardar = "La cantidad debe ser mayor a 0 en todas las filas del detalle.";
+                return;
+            }
+
+            var tieneDisponibles = SeriesDisponiblesPorDetalle.TryGetValue(d, out var disponibles) && disponibles.Count > 0;
+            if (tieneDisponibles)
+            {
+                var seleccionadas = SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) ? sel.Count : 0;
+                if (seleccionadas != d.Cantidad)
+                {
+                    ErrorGuardar = $"El producto con ID {d.id_producto} requiere {d.Cantidad} serie(s) seleccionada(s).";
+                    return;
+                }
+            }
+        }
+
+        try
+        {
+            if (Id == null)
+            {
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await SalidaService.CreateAsync(salida, userId ?? string.Empty);
+
+                foreach (var d in salida.DetalleSalida)
+                {
+                    if (SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) && sel.Count > 0)
+                        await ProductoSerieService.AsociarASalidaAsync(salida.Id, d.id_producto, sel);
+                }
+            }
+            else
+            {
+                await SalidaService.UpdateAsync(salida);
+            }
+
+            Nav.NavigateTo("/salidas");
+        }
+        catch (Exception ex)
+        {
+            ErrorGuardar = ex.Message;
+        }
+    }
+
+    private void AgregarProducto()
+    {
+        ErrorGuardar = null;
+        var d = new DetalleSalida();
+        salida.DetalleSalida.Add(d);
+        SeriesSelectRefs[d] = default;
+    }
+
+    private void EliminarProducto(DetalleSalida d)
+    {
+        ErrorGuardar = null;
+        salida.DetalleSalida.Remove(d);
+        SeriesDisponiblesPorDetalle.Remove(d);
+        SeriesSeleccionadasPorDetalle.Remove(d);
+        SeriesSelectRefs.Remove(d);
+    }
+
+    private void Volver() => Nav.NavigateTo("/salidas");
+}

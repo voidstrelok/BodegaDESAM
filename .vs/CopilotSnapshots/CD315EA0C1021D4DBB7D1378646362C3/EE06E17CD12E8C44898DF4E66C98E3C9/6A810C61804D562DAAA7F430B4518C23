@@ -1,0 +1,315 @@
+﻿@page "/entradas"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@inject EntradaService EntradaService
+@inject UserDisplayNameService UserDisplayNameService
+@inject NavigationManager Nav
+
+@using Microsoft.AspNetCore.WebUtilities
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="page-title m-0">Entradas</h3>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
+    </div>
+</div>
+
+@if (entradas == null)
+{
+    <p>Cargando...</p>
+}
+else if (entradas.Count == 0)
+{
+    <p>No hay entradas ingresadas.</p>
+}
+else
+{
+    <!-- Desktop / tablet (md+) -->
+    <div class="card-section p-2 d-none d-md-block">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 90px">Código</th>
+                        <th style="width: 140px">Fecha</th>
+                        <th>Proveedor</th>
+                        <th style="width: 140px">N° Documento</th>
+                        <th style="width: 35%">Observación</th>
+                        <th style="width: 210px">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in entradas)
+                    {
+                        <tr>
+                            <td>@e.Id</td>
+                            <td class="text-nowrap">@e.Fecha</td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 320px" title="@e.Proveedor.Nombre">@e.Proveedor.Nombre</div>
+                            </td>
+                            <td>@e.NDocumento</td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 520px" title="@e.Observacion">@e.Observacion</div>
+                            </td>
+                            <td class="text-nowrap">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="() => VerEntrada(e.Id)">Ver</button>
+                                <button class="btn btn-outline-primary btn-sm ms-1" @onclick='() => Nav.NavigateTo($"/entradas/editar/{e.Id}")'>Editar</button>
+                                <button class="btn btn-danger btn-sm ms-1" @onclick="() => Eliminar(e.Id)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile (xs/sm) -->
+    <div class="d-md-none">
+        @foreach (var e in entradas)
+        {
+            <div class="card-section p-3 mb-2">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="fw-semibold">Entrada #@e.Id</div>
+                        <div class="text-muted small">@e.Fecha</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap justify-content-start justify-content-sm-end w-100 w-sm-auto">
+                        <button class="btn btn-outline-secondary btn-sm flex-grow-1 flex-sm-grow-0" @onclick="() => VerEntrada(e.Id)">Ver</button>
+                        <button class="btn btn-outline-primary btn-sm flex-grow-1 flex-sm-grow-0" @onclick='() => Nav.NavigateTo($"/entradas/editar/{e.Id}")'>Editar</button>
+                        <button class="btn btn-danger btn-sm flex-grow-1 flex-sm-grow-0" @onclick="() => Eliminar(e.Id)">Eliminar</button>
+                    </div>
+                </div>
+
+                <div class="mt-2">
+                    <div class="small fw-semibold">Proveedor</div>
+                    <div class="small text-break">@e.Proveedor.Nombre</div>
+                </div>
+
+                <div class="mt-2">
+                    <div class="small fw-semibold">N° Documento</div>
+                    <div class="small text-break">@e.NDocumento</div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(e.Observacion))
+                {
+                    <div class="mt-2">
+                        <div class="small fw-semibold">Observación</div>
+                        <div class="small text-break">@e.Observacion</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (MostrarModal && EntradaSeleccionada != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            Entrada Nº @EntradaSeleccionada.Id
+                        </h5>
+                        <button class="btn-close"
+                                @onclick="CerrarModal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="container-fluid">
+
+                            <!-- Datos generales -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>N° Salida</strong>
+                                    <div>@EntradaSeleccionada.Id</div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <strong>Fecha</strong>
+                                    <div>@EntradaSeleccionada.Fecha.ToString("dd/MM/yyyy")</div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <strong>Usuario</strong>
+                                     <div>@(UsuarioEntradaSeleccionada ?? EntradaSeleccionada.IdUsuario)</div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Proveedor</strong>
+                                    <div>@EntradaSeleccionada.Proveedor.Nombre</div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            <!-- Detalle de productos -->
+                            <h6 class="mb-2">Detalle de productos</h6>
+
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Marca</th>
+                                        <th>Categoría</th>
+                                        <th>Modelo</th>
+                                        <th class="text-center">Cantidad</th>
+                                        <th>Series</th>
+                                        <th>Caducidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var d in EntradaSeleccionada.DetalleEntrada)
+                                    {
+                                        <tr>
+                                            <td>@d.Producto.Nombre</td>
+                                            <td>@d.Producto.Marca?.Nombre</td>
+                                            <td>@d.Producto.CategoriaProducto?.Nombre</td>
+                                            <td>@d.Producto.Modelo</td>
+                                            <td class="text-center">@d.Cantidad</td>
+                                            <td>
+                                                @if (d.ProductoSeries == null || d.ProductoSeries.Count == 0)
+                                                {
+                                                    <span class="text-muted small">(sin serie)</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="small text-break">@string.Join(", ", d.ProductoSeries.Select(s => s.Serie))</div>
+                                                }
+                                            </td>
+                                            <td>@d.FechaVencimiento.ToString()</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+
+                            <!-- Observaciones generales -->
+                            @if (true)
+                            {
+                                <div class="mt-3">
+                                    <strong>Observaciones</strong>
+                                    <div class="border rounded p-2 bg-light">
+                                        @EntradaSeleccionada.Observacion
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary"
+                                @onclick="CerrarModal">
+                            Cerrar
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    @if (MostrarConfirmEliminar)
+    {
+        <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar eliminación</h5>
+                        <button class="btn-close" @onclick="CancelarEliminar"></button>
+                    </div>
+                    <div class="modal-body">
+                        ¿Eliminar la entrada #@IdEliminar?
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CancelarEliminar">Cancelar</button>
+                        <button class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+}
+
+@code {
+    List<Entrada>? entradas;
+    bool MostrarModal;
+    Entrada? EntradaSeleccionada;
+    string? UsuarioEntradaSeleccionada;
+    bool MostrarConfirmEliminar;
+    long IdEliminar;
+    string? ErrorEliminar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        entradas = await EntradaService.GetAllAsync();
+
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("view", out var view) && long.TryParse(view.ToString(), out var id))
+            await VerEntrada(id);
+    }
+
+    void Nuevo()
+    {
+        Nav.NavigateTo("/entradas/nuevo");
+    }
+    void Editar(long id) => Nav.NavigateTo($"/entradas/editar/{id}");
+    Task Eliminar(long id)
+    {
+        IdEliminar = id;
+        MostrarConfirmEliminar = true;
+        ErrorEliminar = null;
+        return Task.CompletedTask;
+    }
+
+    async Task ConfirmarEliminar()
+    {
+        var id = IdEliminar;
+        MostrarConfirmEliminar = false;
+
+        try
+        {
+            var eliminado = await EntradaService.DeleteAsync(id);
+            if (!eliminado)
+                return;
+        }
+        catch (Exception ex)
+        {
+            ErrorEliminar = ex.Message;
+            return;
+        }
+
+        if (EntradaSeleccionada?.Id == id)
+        {
+            MostrarModal = false;
+            EntradaSeleccionada = null;
+        }
+
+        entradas = await EntradaService.GetAllAsync();
+    }
+
+    void CancelarEliminar()
+    {
+        MostrarConfirmEliminar = false;
+        IdEliminar = 0;
+    }
+
+    async Task VerEntrada(long Id)
+    {
+        EntradaSeleccionada = await EntradaService.GetByIdAsync(Id);
+        UsuarioEntradaSeleccionada = await UserDisplayNameService.GetNombreAsync(EntradaSeleccionada?.IdUsuario);
+        MostrarModal = true;
+    }
+
+    void CerrarModal()
+    {
+        MostrarModal = false;
+    }
+}

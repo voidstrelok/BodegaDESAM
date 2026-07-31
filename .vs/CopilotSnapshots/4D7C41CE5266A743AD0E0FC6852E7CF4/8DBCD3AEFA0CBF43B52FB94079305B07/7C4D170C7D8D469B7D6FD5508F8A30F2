@@ -1,0 +1,73 @@
+﻿@page "/productos"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+@inject ProductoService Service
+@inject NavigationManager Nav
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="page-title m-0">Productos</h3>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
+    </div>
+</div>
+
+@if (productos == null)
+{
+    <p>Cargando...</p>
+}
+else if(productos.Count == 0)
+{
+    <p>No hay productos ingresados.</p>
+}
+else
+{
+    <div class="card-section p-2">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Modelo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in productos)
+            {
+                <tr>
+                    <td>@p.Id</td>
+                    <td>@p.Nombre</td>
+                    <td>@p.Modelo</td>
+                    <td class="text-nowrap">
+                        <button class="btn btn-outline-primary btn-sm" @onclick='() => Nav.NavigateTo($"/productos/editar/{p.Id}")'>Editar</button>
+                        <button class="btn btn-danger btn-sm ms-1" @onclick="() => Eliminar(p.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    List<Producto>? productos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        productos = await Service.GetAllAsync();
+    }
+
+    void Nuevo()
+    {
+        Nav.NavigateTo("/productos/nuevo");
+    }
+    void Editar(int id) => Nav.NavigateTo($"/productos/editar/{id}");
+    async void Eliminar(int id)
+    {
+        return;
+    }
+}

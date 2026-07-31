@@ -1,0 +1,102 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Data;
+
+public static class AppSeed
+{
+    public static async Task SeedAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PostgresDataContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+
+        // Idempotente: si ya hay datos básicos, no volver a insertar
+        if (await db.Marca.AnyAsync() || await db.CategoriaProducto.AnyAsync() || await db.Producto.AnyAsync() || await db.Proveedor.AnyAsync())
+            return;
+
+        // Dependencias básicas
+        var marcas = new[]
+        {
+            new Marca { Nombre = "Genérica" },
+            new Marca { Nombre = "ACME" },
+            new Marca { Nombre = "Contoso" }
+        };
+        db.Marca.AddRange(marcas);
+
+        var proveedores = new[]
+        {
+            new Proveedor { Nombre = "Proveedor Central" },
+            new Proveedor { Nombre = "Proveedor Norte" }
+        };
+        db.Proveedor.AddRange(proveedores);
+
+        var categorias = new[]
+        {
+            new CategoriaProducto { Nombre = "Insumos" },
+            new CategoriaProducto { Nombre = "Higiene" },
+            new CategoriaProducto { Nombre = "Protección" }
+        };
+        db.CategoriaProducto.AddRange(categorias);
+
+
+        await db.SaveChangesAsync();
+
+        // Productos
+        var productos = new[]
+        {
+            new Producto { Nombre = "Guantes", id_marca = marcas[0].Id, id_categoria_producto = categorias[2].Id },
+            new Producto { Nombre = "Mascarillas", id_marca = marcas[1].Id, id_categoria_producto = categorias[2].Id },
+            new Producto { Nombre = "Alcohol gel", id_marca = marcas[2].Id, id_categoria_producto = categorias[1].Id }
+        };
+        db.Producto.AddRange(productos);
+        await db.SaveChangesAsync();
+
+        // Entradas
+        var entrada1 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
+            id_proveedor = proveedores[0].Id,
+            NDocumento = "FAC-1001",
+            Observacion = "Carga inicial",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() { id_producto = productos[0].Id, Cantidad = 50, FechaVencimiento = null },
+                new() { id_producto = productos[1].Id, Cantidad = 100, FechaVencimiento = null }
+            }
+        };
+
+        var entrada2 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)),
+            id_proveedor = proveedores[1].Id,
+            NDocumento = "FAC-1002",
+            Observacion = "Reposición",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() { id_producto = productos[2].Id, Cantidad = 30, FechaVencimiento = null }
+            }
+        };
+
+        db.Entrada.AddRange(entrada1, entrada2);
+        await db.SaveChangesAsync();
+
+        // Salidas
+        var salida1 = new Salida
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)),
+            id_establecimiento = 1,
+            Solicitante = "Juan Pérez",
+            Observacion = "Entrega a oficina",
+            DetalleSalida = new List<DetalleSalida>
+            {
+                new() { id_producto = productos[1].Id, Cantidad = 20 }
+            }
+        };
+
+        db.Salida.Add(salida1);
+        await db.SaveChangesAsync();
+    }
+}

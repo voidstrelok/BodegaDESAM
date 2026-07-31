@@ -1,0 +1,68 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class InventarioProductoDto
+    {
+        public int IdProducto { get; set; }
+        public string NombreProducto { get; set; } = string.Empty;
+        public string? Marca { get; set; }
+        public long TotalEntradas { get; set; }
+        public long TotalSalidas { get; set; }
+        public long StockActual { get; set; }
+    }
+
+    public class InventarioService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradasPorProducto = db.DetalleEntrada
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                });
+
+            var salidasPorProducto = db.DetalleSalida
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                });
+
+            var query =
+                from p in db.Producto
+                    .AsNoTracking()
+                join m in db.Marca.AsNoTracking() on p.id_marca equals m.Id into mJoin
+                from m in mJoin.DefaultIfEmpty()
+                join e in entradasPorProducto on p.Id equals e.IdProducto into eJoin
+                from e in eJoin.DefaultIfEmpty()
+                join s in salidasPorProducto on p.Id equals s.IdProducto into sJoin
+                from s in sJoin.DefaultIfEmpty()
+                orderby p.Nombre
+                select new InventarioProductoDto
+                {
+                    IdProducto = p.Id,
+                    NombreProducto = p.Nombre,
+                    TotalEntradas = e == null ? 0 : e.Total,
+                    TotalSalidas = s == null ? 0 : s.Total,
+                    StockActual = (e == null ? 0 : e.Total) - (s == null ? 0 : s.Total)
+                };
+
+            return await query.ToListAsync();
+        }
+    }
+}

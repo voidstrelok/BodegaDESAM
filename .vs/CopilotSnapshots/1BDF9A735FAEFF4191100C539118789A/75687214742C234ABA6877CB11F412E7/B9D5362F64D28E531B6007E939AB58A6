@@ -1,0 +1,51 @@
+﻿@page "/inventario"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+@inject InventarioService InventarioService
+
+<h3>Inventario actual</h3>
+
+@if (items == null)
+{
+    <p>Cargando...</p>
+}
+else if (items.Count == 0)
+{
+    <p>No hay productos.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Marca</th>
+                <th class="text-end">Entradas</th>
+                <th class="text-end">Salidas</th>
+                <th class="text-end">Stock</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in items)
+            {
+                <tr>
+                    <td>@i.NombreProducto</td>
+                    <td>@i.Marca</td>
+                    <td class="text-end">@i.TotalEntradas</td>
+                    <td class="text-end">@i.TotalSalidas</td>
+                    <td class="text-end">@i.StockActual</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<InventarioProductoDto>? items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await InventarioService.GetInventarioActualAsync();
+    }
+}

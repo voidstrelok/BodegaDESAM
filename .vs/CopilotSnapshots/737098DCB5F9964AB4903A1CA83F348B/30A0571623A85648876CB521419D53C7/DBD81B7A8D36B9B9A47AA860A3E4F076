@@ -1,0 +1,59 @@
+﻿@rendermode InteractiveServer
+@using BodegaDESAM.Services
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@implements IDisposable
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += ApplyThemeToDOM;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Sincronizar estado inicial desde localStorage
+            try
+            {
+                var isDark = await JS.InvokeAsync<bool>("isDarkMode");
+                ThemeService.SetDarkMode(isDark);
+                await ApplyThemeToDOMAsync();
+            }
+            catch
+            {
+                // JS no disponible aún
+            }
+        }
+    }
+
+    private void ApplyThemeToDOM()
+    {
+        _ = ApplyThemeToDOMAsync();
+    }
+
+    private async Task ApplyThemeToDOMAsync()
+    {
+        try
+        {
+            if (ThemeService.IsDarkMode)
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.setAttribute('data-theme', 'dark')");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.removeAttribute('data-theme')");
+            }
+        }
+        catch
+        {
+            // Ignorar errores de JS
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= ApplyThemeToDOM;
+    }
+}

@@ -1,0 +1,85 @@
+﻿@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+
+@inject ProductoService ProductoService
+@inject MarcaService MarcaService
+@inject NavigationManager Nav
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+<EditForm Model="producto" OnValidSubmit="Guardar" FormName="EditarProducto">
+    <DataAnnotationsValidator />
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Nombre</label>
+                <InputText class="form-control" @bind-Value="producto.Nombre" />
+                <ValidationMessage For="@(() => producto.Nombre)" />
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Marca</label>
+                <InputSelect class="form-select" @bind-Value="producto.id_marca">
+                    <option value="0">-- Seleccionar Marca --</option>
+                    @foreach (var marca in Marcas)
+                    {
+                        <option value="@marca.Id">@marca.Nombre</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => producto.id_marca)" />
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Modelo</label>
+                <InputText class="form-control" @bind-Value="producto.Modelo" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] 
+    public int? Id { get; set; }
+    [SupplyParameterFromForm]
+    Producto producto { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Marca> Marcas { get; set; } = new();
+
+    string Titulo => Id == null ? "Nuevo Producto" : "Editar Producto";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Marcas = await MarcaService.GetAllAsync();
+        
+        if (Id != null)
+        {
+            var existente = await ProductoService.GetByIdAsync((int)Id);
+            if (existente != null)
+                producto = existente;
+        }
+    }
+
+    async void Guardar()
+    {
+        if (Id == null)
+        {
+            await ProductoService.CreateAsync(producto);
+        }
+        else
+            await ProductoService.UpdateAsync(producto);
+
+        Nav.NavigateTo("/productos");
+    }
+
+    void Volver() => Nav.NavigateTo("/productos");
+}

@@ -1,0 +1,298 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class InventarioProductoDto
+    {
+        public int IdProducto { get; set; }
+        public long IdMarca { get; set; }
+        public long? IdModelo { get; set; }
+        public string NombreProducto { get; set; } = string.Empty;
+        public string? Marca { get; set; }
+        public string? Modelo { get; set; }
+        public string? Categoria { get; set; }
+        public long TotalEntradas { get; set; }
+        public long TotalSalidas { get; set; }
+        public long NetoAjustes { get; set; }
+        public long StockActual { get; set; }
+    }
+
+    public class InventarioService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            // Agrupar entradas por producto + marca + modelo
+            var entradasPorSKU = await db.DetalleEntrada
+                .AsNoTracking()
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                })
+                .ToListAsync();
+
+            // Agrupar salidas por producto + marca + modelo (consistente con entradas)
+            var salidasPorSKU = await db.DetalleSalida
+                .AsNoTracking()
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                })
+                .ToDictionaryAsync(
+                    x => (x.id_producto, x.id_marca, x.id_modelo), 
+                    x => x.Total);
+
+            // Agrupar ajustes por producto + marca + modelo
+            var ajustesPorSKU = await db.DetalleAjuste
+                .AsNoTracking()
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    NetoAjuste = g.Sum(x =>
+                        x.TipoAjuste == TipoAjuste.Aumento ? (long)x.Cantidad : -(long)x.Cantidad)
+                })
+                .ToDictionaryAsync(
+                    x => (x.id_producto, x.id_marca, x.id_modelo),
+                    x => x.NetoAjuste);
+
+            // Obtener información de productos
+            var productosIds = entradasPorSKU.Select(e => e.id_producto).Distinct().ToList();
+            var productos = await db.Producto
+                .AsNoTracking()
+                .Where(p => productosIds.Contains(p.Id))
+                .Select(p => new { p.Id, p.Nombre, p.id_categoria_producto })
+                .ToDictionaryAsync(x => x.Id, x => x);
+
+            // Obtener marcas
+            var marcaIds = entradasPorSKU.Select(e => e.id_marca).Distinct().ToList();
+            var marcas = await db.Marca
+                .AsNoTracking()
+                .Where(m => marcaIds.Contains(m.Id))
+                .Select(m => new { m.Id, m.Nombre })
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            // Obtener modelos
+            var modeloIds = entradasPorSKU
+                .Where(e => e.id_modelo.HasValue)
+                .Select(e => e.id_modelo.Value)
+                .Distinct()
+                .ToList();
+            var modelos = await db.Modelo
+                .AsNoTracking()
+                .Where(m => modeloIds.Contains(m.Id))
+                .Select(m => new { m.Id, m.Nombre })
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            // Obtener categorías
+            var categoriaIds = productos.Values.Select(p => p.id_categoria_producto).Distinct().ToList();
+            var categorias = await db.CategoriaProducto
+                .AsNoTracking()
+                .Where(c => categoriaIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Nombre })
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            var result = new List<InventarioProductoDto>();
+
+            foreach (var entrada in entradasPorSKU)
+            {
+                if (!productos.TryGetValue(entrada.id_producto, out var producto))
+                    continue;
+
+                // Buscar salidas con el mismo SKU (Producto + Marca + Modelo)
+                var salidas = salidasPorSKU.TryGetValue(
+                    (entrada.id_producto, entrada.id_marca, entrada.id_modelo), 
+                    out var ts) ? ts : 0L;
+
+                // Neto de ajustes (positivo = aumento, negativo = disminución)
+                var netoAjuste = ajustesPorSKU.TryGetValue(
+                    (entrada.id_producto, entrada.id_marca, entrada.id_modelo),
+                    out var aj) ? aj : 0L;
+
+                var stock = entrada.Total - salidas + netoAjuste;
+
+                string? marcaNombre = marcas.TryGetValue(entrada.id_marca, out var mn) ? mn : null;
+                string? modeloNombre = entrada.id_modelo.HasValue && modelos.TryGetValue(entrada.id_modelo.Value, out var modn) ? modn : null;
+                string? categoriaNombre = categorias.TryGetValue(producto.id_categoria_producto, out var cn) ? cn : null;
+
+                result.Add(new InventarioProductoDto
+                {
+                    IdProducto = entrada.id_producto,
+                    IdMarca = entrada.id_marca,
+                    IdModelo = entrada.id_modelo,
+                    NombreProducto = producto.Nombre,
+                    Marca = marcaNombre,
+                    Modelo = modeloNombre,
+                    Categoria = categoriaNombre,
+                    TotalEntradas = entrada.Total,
+                    TotalSalidas = salidas,
+                    NetoAjustes = netoAjuste,
+                    StockActual = stock
+                });
+            }
+
+            return result
+                .OrderBy(i => i.NombreProducto)
+                .ThenBy(i => i.Marca)
+                .ThenBy(i => i.Modelo)
+                .ToList();
+        }
+
+        public async Task<List<ProductoSkuDisponible>> GetSkusDisponiblesAsync(int? idBodega = null)
+        {
+            using var db = _factory.CreateDbContext();
+
+            // Consulta de entradas, opcionalmente filtrada por bodega
+            var entradasQuery = db.DetalleEntrada
+                .AsNoTracking()
+                .Include(d => d.Entrada)
+                .AsQueryable();
+
+            if (idBodega.HasValue && idBodega.Value > 0)
+            {
+                entradasQuery = entradasQuery.Where(d => d.Entrada.id_bodega == idBodega.Value);
+            }
+
+            // Agrupar entradas por SKU
+            var entradasPorSKU = await entradasQuery
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                })
+                .ToListAsync();
+
+            // Consulta de salidas, opcionalmente filtrada por bodega
+            var salidasQuery = db.DetalleSalida
+                .AsNoTracking()
+                .Include(d => d.Salida)
+                .AsQueryable();
+
+            if (idBodega.HasValue && idBodega.Value > 0)
+            {
+                salidasQuery = salidasQuery.Where(d => d.Salida.id_bodega == idBodega.Value);
+            }
+
+            // Agrupar salidas por SKU
+            var salidasPorSKU = await salidasQuery
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    Total = g.Sum(x => (long?)x.Cantidad) ?? 0L
+                })
+                .ToDictionaryAsync(
+                    x => (x.id_producto, x.id_marca, x.id_modelo),
+                    x => x.Total);
+
+            // Agrupar ajustes por SKU
+            var ajustesPorSKU = await db.DetalleAjuste
+                .AsNoTracking()
+                .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    NetoAjuste = g.Sum(x =>
+                        x.TipoAjuste == TipoAjuste.Aumento ? (long)x.Cantidad : -(long)x.Cantidad)
+                })
+                .ToDictionaryAsync(
+                    x => (x.id_producto, x.id_marca, x.id_modelo),
+                    x => x.NetoAjuste);
+
+            // Obtener información de productos
+            var productosIds = entradasPorSKU.Select(e => e.id_producto).Distinct().ToList();
+            var productos = await db.Producto
+                .AsNoTracking()
+                .Where(p => productosIds.Contains(p.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            // Obtener marcas
+            var marcaIds = entradasPorSKU.Select(e => e.id_marca).Distinct().ToList();
+            var marcas = await db.Marca
+                .AsNoTracking()
+                .Where(m => marcaIds.Contains(m.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            // Obtener modelos
+            var modeloIds = entradasPorSKU
+                .Where(e => e.id_modelo.HasValue)
+                .Select(e => e.id_modelo.Value)
+                .Distinct()
+                .ToList();
+            var modelos = await db.Modelo
+                .AsNoTracking()
+                .Where(m => modeloIds.Contains(m.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            var result = new List<ProductoSkuDisponible>();
+
+            foreach (var entrada in entradasPorSKU)
+            {
+                if (!productos.TryGetValue(entrada.id_producto, out var productoNombre))
+                    continue;
+
+                if (!marcas.TryGetValue(entrada.id_marca, out var marcaNombre))
+                    continue;
+
+                // Calcular stock disponible
+                var salidas = salidasPorSKU.TryGetValue(
+                    (entrada.id_producto, entrada.id_marca, entrada.id_modelo),
+                    out var ts) ? ts : 0L;
+
+                var netoAjuste = ajustesPorSKU.TryGetValue(
+                    (entrada.id_producto, entrada.id_marca, entrada.id_modelo),
+                    out var aj) ? aj : 0L;
+
+                var stock = entrada.Total - salidas + netoAjuste;
+
+                // Solo incluir SKUs con stock disponible
+                if (stock <= 0)
+                    continue;
+
+                string? modeloNombre = entrada.id_modelo.HasValue && modelos.TryGetValue(entrada.id_modelo.Value, out var mn) ? mn : null;
+
+                result.Add(new ProductoSkuDisponible
+                {
+                    IdProducto = entrada.id_producto,
+                    NombreProducto = productoNombre,
+                    IdMarca = entrada.id_marca,
+                    NombreMarca = marcaNombre,
+                    IdModelo = entrada.id_modelo,
+                    NombreModelo = modeloNombre,
+                    StockDisponible = stock
+                });
+            }
+
+            return result
+                .OrderBy(s => s.NombreProducto)
+                .ThenBy(s => s.NombreMarca)
+                .ThenBy(s => s.NombreModelo)
+                .ToList();
+        }
+    }
+}

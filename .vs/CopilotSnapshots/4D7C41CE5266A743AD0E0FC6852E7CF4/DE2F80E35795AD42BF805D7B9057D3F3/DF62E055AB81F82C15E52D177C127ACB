@@ -1,0 +1,84 @@
+﻿using BodegaDESAM.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Tests.Services;
+
+public class InventarioServiceTests
+{
+    sealed class TestDbContextFactory : IDbContextFactory<PostgresDataContext>
+    {
+        private readonly DbContextOptions<PostgresDataContext> _options;
+
+        public TestDbContextFactory(DbContextOptions<PostgresDataContext> options)
+        {
+            _options = options;
+        }
+
+        public PostgresDataContext CreateDbContext()
+        {
+            return new PostgresDataContext(_options);
+        }
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WhenNoData_ReturnsAllProductsWithZeroStock()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase(databaseName: $"inv_{Guid.NewGuid():N}")
+            .Options;
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.Producto.Add(new Producto { Id = 2, Nombre = "Prod B" });
+            await db.SaveChangesAsync();
+        }
+
+        var factory = new TestDbContextFactory(options);
+        var service = new InventarioService(factory);
+
+        var result = await service.GetInventarioActualAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, r =>
+        {
+            Assert.Equal(0, r.TotalEntradas);
+            Assert.Equal(0, r.TotalSalidas);
+            Assert.Equal(0, r.StockActual);
+        });
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WithEntriesAndExits_ComputesStock()
+    {
+        var options = new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase(databaseName: $"inv_{Guid.NewGuid():N}")
+            .Options;
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Marca.Add(new Marca { Id = 10, Nombre = "Marca X" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A", id_marca = 10 });
+
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, Cantidad = 5, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, Cantidad = 2, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+
+            db.DetalleSalida.Add(new DetalleSalida { id_producto = 1, Cantidad = 3 });
+
+            await db.SaveChangesAsync();
+        }
+
+        var factory = new TestDbContextFactory(options);
+        var service = new InventarioService(factory);
+
+        var result = await service.GetInventarioActualAsync();
+
+        var item = Assert.Single(result);
+        Assert.Equal(1, item.IdProducto);
+        Assert.Equal("Prod A", item.NombreProducto);
+        Assert.Equal("Marca X", item.Marca);
+        Assert.Equal(7, item.TotalEntradas);
+        Assert.Equal(3, item.TotalSalidas);
+        Assert.Equal(4, item.StockActual);
+    }
+}

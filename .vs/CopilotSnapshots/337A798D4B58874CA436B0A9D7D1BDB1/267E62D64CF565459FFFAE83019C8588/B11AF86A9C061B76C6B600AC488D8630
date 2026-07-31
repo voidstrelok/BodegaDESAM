@@ -1,0 +1,161 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class ProductoSerieService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public ProductoSerieService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<string>> GetDisponiblesAsync(int idProducto)
+        {
+            using var db = _factory.CreateDbContext();
+
+            return await db.ProductoSerie
+                .AsNoTracking()
+                .Where(s => s.id_producto == idProducto && s.id_salida == null)
+                .OrderBy(s => s.Serie)
+                .Select(s => s.Serie)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Obtiene las series disponibles filtrando por SKU completo (Producto + Marca + Modelo)
+        /// </summary>
+        public async Task<List<string>> GetDisponiblesPorSkuAsync(int idProducto, long idMarca, long? idModelo)
+        {
+            using var db = _factory.CreateDbContext();
+
+            return await db.ProductoSerie
+                .AsNoTracking()
+                .Include(s => s.DetalleEntrada)
+                .Where(s => s.id_producto == idProducto 
+                    && s.id_salida == null
+                    && s.DetalleEntrada.id_marca == idMarca
+                    && s.DetalleEntrada.id_modelo == idModelo)
+                .OrderBy(s => s.Serie)
+                .Select(s => s.Serie)
+                .ToListAsync();
+        }
+
+        public async Task<List<ProductoSerie>> CrearSeriesAsync(int idProducto, int idDetalleEntrada, IEnumerable<string> series)
+        {
+            var seriesList = series
+                .Select(s => (s ?? string.Empty).Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            using var db = _factory.CreateDbContext();
+
+            // Duplicados en el lote
+            var dupLote = seriesList
+                .GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(g => g.Count() > 1);
+
+            if (dupLote != null)
+                throw new InvalidOperationException($"N° de serie duplicado en el ingreso: {dupLote.Key}");
+
+            // Duplicados ya existentes para el mismo producto
+            var existentes = await db.ProductoSerie
+                .AsNoTracking()
+                .Where(x => x.id_producto == idProducto)
+                .Select(x => x.Serie)
+                .ToListAsync();
+
+            var setExistentes = new HashSet<string>(existentes, StringComparer.OrdinalIgnoreCase);
+            var repetido = seriesList.FirstOrDefault(s => setExistentes.Contains(s));
+            if (repetido != null)
+                throw new InvalidOperationException($"El N° de serie ya existe para este producto: {repetido}");
+
+            var entities = seriesList.Select(s => new ProductoSerie
+            {
+                id_producto = idProducto,
+                id_detalle_entrada = idDetalleEntrada,
+                Serie = s,
+                id_salida = null
+            }).ToList();
+
+            db.ProductoSerie.AddRange(entities);
+            await db.SaveChangesAsync();
+            return entities;
+        }
+
+        public async Task<List<ProductoSerie>> CrearSeriesDesdeAjusteAsync(int idProducto, int idDetalleAjuste, IEnumerable<string> series)
+        {
+            var seriesList = series
+                .Select(s => (s ?? string.Empty).Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            using var db = _factory.CreateDbContext();
+
+            var dupLote = seriesList
+                .GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(g => g.Count() > 1);
+
+            if (dupLote != null)
+                throw new InvalidOperationException($"N° de serie duplicado en el ajuste: {dupLote.Key}");
+
+            var existentes = await db.ProductoSerie
+                .AsNoTracking()
+                .Where(x => x.id_producto == idProducto)
+                .Select(x => x.Serie)
+                .ToListAsync();
+
+            var setExistentes = new HashSet<string>(existentes, StringComparer.OrdinalIgnoreCase);
+            var repetido = seriesList.FirstOrDefault(s => setExistentes.Contains(s));
+            if (repetido != null)
+                throw new InvalidOperationException($"El N° de serie ya existe para este producto: {repetido}");
+
+            var entities = seriesList.Select(s => new ProductoSerie
+            {
+                id_producto = idProducto,
+                id_detalle_ajuste = idDetalleAjuste,
+                Serie = s,
+                id_salida = null
+            }).ToList();
+
+            db.ProductoSerie.AddRange(entities);
+            await db.SaveChangesAsync();
+            return entities;
+        }
+
+        public async Task AsociarASalidaAsync(int idSalida, int idProducto, IEnumerable<string> series)
+        {
+            var seriesList = series
+                .Select(s => (s ?? string.Empty).Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            using var db = _factory.CreateDbContext();
+
+            var disponibles = await db.ProductoSerie
+                .Where(s => s.id_producto == idProducto && s.id_salida == null && seriesList.Contains(s.Serie))
+                .ToListAsync();
+
+            if (disponibles.Count != seriesList.Count)
+                throw new InvalidOperationException("Una o más series no están disponibles.");
+
+            foreach (var s in disponibles)
+                s.id_salida = idSalida;
+
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<List<ProductoSerie>> GetSeriesPorSalidaAsync(int idSalida)
+        {
+            using var db = _factory.CreateDbContext();
+
+            return await db.ProductoSerie
+                .AsNoTracking()
+                .Where(s => s.id_salida == idSalida)
+                .OrderBy(s => s.id_producto)
+                .ThenBy(s => s.Serie)
+                .ToListAsync();
+        }
+    }
+}

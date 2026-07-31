@@ -1,0 +1,306 @@
+﻿using BodegaDESAM.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Tests.Services;
+
+public class InventarioServiceTests
+{
+    sealed class TestDbContextFactory : IDbContextFactory<PostgresDataContext>
+    {
+        private readonly DbContextOptions<PostgresDataContext> _options;
+
+        public TestDbContextFactory(DbContextOptions<PostgresDataContext> options)
+        {
+            _options = options;
+        }
+
+        public PostgresDataContext CreateDbContext() => new(_options);
+    }
+
+    static DbContextOptions<PostgresDataContext> NewDb() =>
+        new DbContextOptionsBuilder<PostgresDataContext>()
+            .UseInMemoryDatabase($"inv_{Guid.NewGuid():N}")
+            .Options;
+
+    // ─── GetInventarioActualAsync ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WhenNoData_ReturnsEmptyList()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        // No hay entradas, por lo tanto el inventario estará vacío
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WithEntriesAndExits_ComputesStock()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Marca.Add(new Marca { Id = 10, Nombre = "Marca X" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 10, Cantidad = 5, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 10, Cantidad = 2, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleSalida.Add(new DetalleSalida { id_producto = 1, id_marca = 10, Cantidad = 3 });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        var item = Assert.Single(result);
+        Assert.Equal(1, item.IdProducto);
+        Assert.Equal(10, item.IdMarca);
+        Assert.Equal("Prod A", item.NombreProducto);
+        Assert.Equal("Marca X", item.Marca);
+        Assert.Equal(7, item.TotalEntradas);
+        Assert.Equal(3, item.TotalSalidas);
+        Assert.Equal(4, item.StockActual);
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WithAumentoAjuste_IncreasesStock()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 1, Cantidad = 10, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleAjuste.Add(new DetalleAjuste { id_producto = 1, id_marca = 1, TipoAjuste = TipoAjuste.Aumento, Cantidad = 5 });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        var item = Assert.Single(result);
+        Assert.Equal(10, item.TotalEntradas);
+        Assert.Equal(0, item.TotalSalidas);
+        Assert.Equal(5, item.NetoAjustes);
+        Assert.Equal(15, item.StockActual);
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WithDisminucionAjuste_DecreasesStock()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 1, Cantidad = 10, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleAjuste.Add(new DetalleAjuste { id_producto = 1, id_marca = 1, TipoAjuste = TipoAjuste.Disminucion, Cantidad = 3 });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        var item = Assert.Single(result);
+        Assert.Equal(-3, item.NetoAjustes);
+        Assert.Equal(7, item.StockActual);
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_WithModelo_PopulatesModeloAndCategoria()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.CategoriaProducto.Add(new CategoriaProducto { Id = 5, Nombre = "Categoría X" });
+            db.Marca.Add(new Marca { Id = 2, Nombre = "Marca B" });
+            db.Modelo.Add(new Modelo { Id = 7, Nombre = "Modelo Z" });
+            db.Producto.Add(new Producto { Id = 3, Nombre = "Prod C", id_categoria_producto = 5 });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 3, id_marca = 2, id_modelo = 7, Cantidad = 4, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        var item = Assert.Single(result);
+        Assert.Equal("Modelo Z", item.Modelo);
+        Assert.Equal("Categoría X", item.Categoria);
+        Assert.Equal(7, item.IdModelo);
+    }
+
+    [Fact]
+    public async Task GetInventarioActualAsync_MultipleSkus_ReturnsSeparateRows()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca 1" });
+            db.Marca.Add(new Marca { Id = 2, Nombre = "Marca 2" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 1, Cantidad = 5, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            db.DetalleEntrada.Add(new DetalleEntrada { id_producto = 1, id_marca = 2, Cantidad = 8, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetInventarioActualAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, r => r.IdMarca == 1 && r.StockActual == 5);
+        Assert.Contains(result, r => r.IdMarca == 2 && r.StockActual == 8);
+    }
+
+    // ─── GetSkusDisponiblesAsync ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetSkusDisponiblesAsync_WithStock_ReturnsSku()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Bodega.Add(new Bodega { Id = 1, Nombre = "Central", Codigo = "C1", EsPrincipal = true });
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.Entrada.Add(new Entrada
+            {
+                Id = 1, IdUsuario = "usr", id_bodega = 1, id_proveedor = 0,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow), NDocumento = "D1",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 1, id_marca = 1, Cantidad = 10, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetSkusDisponiblesAsync();
+
+        var sku = Assert.Single(result);
+        Assert.Equal(1, sku.IdProducto);
+        Assert.Equal(1, sku.IdMarca);
+        Assert.Equal(10, sku.StockDisponible);
+    }
+
+    [Fact]
+    public async Task GetSkusDisponiblesAsync_WhenStockIsZero_ExcludesSku()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Bodega.Add(new Bodega { Id = 1, Nombre = "Central", Codigo = "C1", EsPrincipal = true });
+            db.Establecimiento.Add(new Establecimiento { Id = 1, Nombre = "Est A", Codigo = "E1" });
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.Entrada.Add(new Entrada
+            {
+                Id = 1, IdUsuario = "usr", id_bodega = 1, id_proveedor = 0,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow), NDocumento = "D1",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 1, id_marca = 1, Cantidad = 5, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+            db.Salida.Add(new Salida
+            {
+                Id = 1, IdUsuario = "usr", id_bodega = 1, id_establecimiento = 1,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow),
+                DetalleSalida = new List<DetalleSalida>
+                {
+                    new() { id_producto = 1, id_marca = 1, Cantidad = 5 }
+                }
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetSkusDisponiblesAsync();
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetSkusDisponiblesAsync_FilteredByBodega_OnlyReturnsThatBodegaStock()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Bodega.Add(new Bodega { Id = 1, Nombre = "Bodega 1", Codigo = "B1", EsPrincipal = true });
+            db.Bodega.Add(new Bodega { Id = 2, Nombre = "Bodega 2", Codigo = "B2", EsPrincipal = false });
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.Entrada.Add(new Entrada
+            {
+                Id = 1, IdUsuario = "usr", id_bodega = 1, id_proveedor = 0,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow), NDocumento = "D1",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 1, id_marca = 1, Cantidad = 6, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+            db.Entrada.Add(new Entrada
+            {
+                Id = 2, IdUsuario = "usr", id_bodega = 2, id_proveedor = 0,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow), NDocumento = "D2",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 1, id_marca = 1, Cantidad = 99, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetSkusDisponiblesAsync(idBodega: 1);
+
+        var sku = Assert.Single(result);
+        Assert.Equal(6, sku.StockDisponible);
+    }
+
+    [Fact]
+    public async Task GetSkusDisponiblesAsync_WithModelo_PopulatesNombreModelo()
+    {
+        var options = NewDb();
+
+        await using (var db = new PostgresDataContext(options))
+        {
+            db.Bodega.Add(new Bodega { Id = 1, Nombre = "Central", Codigo = "C1", EsPrincipal = true });
+            db.Marca.Add(new Marca { Id = 1, Nombre = "Marca A" });
+            db.Modelo.Add(new Modelo { Id = 3, Nombre = "Modelo Z" });
+            db.Producto.Add(new Producto { Id = 1, Nombre = "Prod A" });
+            db.Entrada.Add(new Entrada
+            {
+                Id = 1, IdUsuario = "usr", id_bodega = 1, id_proveedor = 0,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow), NDocumento = "D1",
+                DetalleEntrada = new List<DetalleEntrada>
+                {
+                    new() { id_producto = 1, id_marca = 1, id_modelo = 3, Cantidad = 4, FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow) }
+                }
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var service = new InventarioService(new TestDbContextFactory(options));
+        var result = await service.GetSkusDisponiblesAsync();
+
+        var sku = Assert.Single(result);
+        Assert.Equal(3, sku.IdModelo);
+        Assert.Equal("Modelo Z", sku.NombreModelo);
+    }
+}

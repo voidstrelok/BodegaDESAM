@@ -1,0 +1,182 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class SalidaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public SalidaService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<Dictionary<int, long>> GetEntradasPorProductoAsync(List<int> productoIds)
+        {
+            using var db = _factory.CreateDbContext();
+
+            return await db.DetalleEntrada
+                .AsNoTracking()
+                .Where(d => productoIds.Contains(d.id_producto))
+                .GroupBy(d => d.id_producto)
+                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
+                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
+        }
+
+        public async Task<Dictionary<int, long>> GetSalidasPorProductoAsync(List<int> productoIds, int? excluirSalidaId)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var query = db.DetalleSalida
+                .AsNoTracking()
+                .Where(d => productoIds.Contains(d.id_producto));
+
+            if (excluirSalidaId != null)
+                query = query.Where(d => d.id_salida != excluirSalidaId.Value);
+
+            return await query
+                .GroupBy(d => d.id_producto)
+                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
+                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
+        }
+
+        public async Task<List<Salida>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Salida
+                .AsNoTracking()
+                .Include(s => s.EStablecimiento)
+                .Include(s => s.DetalleSalida)
+                .OrderByDescending(s => s.Id)
+                .ToListAsync();
+        }
+
+        public async Task<Salida?> GetByIdAsync(int id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Salida
+                .Include(s => s.EStablecimiento)
+                .Include(s => s.DetalleSalida)
+                .ThenInclude(d => d.Producto)
+                .ThenInclude(p => p.Marca)
+                .Include(s => s.DetalleSalida)
+                .ThenInclude(d => d.Producto)
+                .ThenInclude(p => p.CategoriaProducto)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public async Task CreateAsync(Salida salida)
+        {
+            if (string.IsNullOrWhiteSpace(salida.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(salida));
+
+            using var db = _factory.CreateDbContext();
+
+            await ValidarStockDisponibleAsync(db, salida);
+            db.Salida.Add(salida);
+            await db.SaveChangesAsync();
+        }
+
+        public Task CreateAsync(Salida salida, string idUsuario)
+        {
+            salida.IdUsuario = idUsuario;
+            return CreateAsync(salida);
+        }
+
+        public async Task UpdateAsync(Salida salida)
+        {
+            if (string.IsNullOrWhiteSpace(salida.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(salida));
+
+            using var db = _factory.CreateDbContext();
+
+            await ValidarStockDisponibleAsync(db, salida);
+            db.Salida.Update(salida);
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task ValidarStockDisponibleAsync(PostgresDataContext db, Salida salida)
+        {
+            if (salida.DetalleSalida == null || salida.DetalleSalida.Count == 0)
+                throw new InvalidOperationException("Debe agregar al menos un producto al detalle.");
+
+            var requerido = salida.DetalleSalida
+                .Where(d => d != null && d.id_producto > 0)
+                .GroupBy(d => d.id_producto)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Cantidad));
+
+            if (requerido.Count == 0)
+                throw new InvalidOperationException("Debe seleccionar al menos un producto válido.");
+
+            var productoIds = requerido.Keys.ToList();
+
+            var entradas = await db.DetalleEntrada
+                .AsNoTracking()
+                .Where(d => productoIds.Contains(d.id_producto))
+                .GroupBy(d => d.id_producto)
+                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
+                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
+
+            var salidas = await db.DetalleSalida
+                .AsNoTracking()
+                .Where(d => productoIds.Contains(d.id_producto))
+                .GroupBy(d => d.id_producto)
+                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
+                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
+
+            if (salida.Id != 0)
+            {
+                var salidasActual = await db.DetalleSalida
+                    .AsNoTracking()
+                    .Where(d => d.id_salida == salida.Id && productoIds.Contains(d.id_producto))
+                    .GroupBy(d => d.id_producto)
+                    .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
+                    .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
+
+                foreach (var kvp in salidasActual)
+                    salidas[kvp.Key] = (salidas.TryGetValue(kvp.Key, out var s) ? s : 0L) - kvp.Value;
+            }
+
+            var nombres = await db.Producto
+                .AsNoTracking()
+                .Where(p => productoIds.Contains(p.Id))
+                .Select(p => new { p.Id, p.Nombre })
+                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
+
+            foreach (var req in requerido)
+            {
+                var idProducto = req.Key;
+                var cantReq = req.Value;
+
+                var totalEntradas = entradas.TryGetValue(idProducto, out var te) ? te : 0L;
+                var totalSalidas = salidas.TryGetValue(idProducto, out var ts) ? ts : 0L;
+                var stock = totalEntradas - totalSalidas;
+
+                if (cantReq > stock)
+                {
+                    var nombre = nombres.TryGetValue(idProducto, out var n) ? n : $"ID {idProducto}";
+                    throw new InvalidOperationException($"Stock insuficiente para '{nombre}'. Disponible: {stock}. Solicitado: {cantReq}.");
+                }
+            }
+        }
+
+        public async Task<bool> DeleteAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var salida = await db.Salida
+                .Include(s => s.DetalleSalida)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (salida is null)
+                return false;
+
+            if (salida.DetalleSalida is not null && salida.DetalleSalida.Count > 0)
+                db.DetalleSalida.RemoveRange(salida.DetalleSalida);
+
+            db.Salida.Remove(salida);
+            await db.SaveChangesAsync();
+            return true;
+        }
+    }
+}

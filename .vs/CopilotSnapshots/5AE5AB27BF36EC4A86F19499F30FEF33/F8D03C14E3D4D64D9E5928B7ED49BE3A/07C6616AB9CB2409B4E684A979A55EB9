@@ -1,0 +1,48 @@
+﻿using BodegaDESAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+
+namespace BodegaDESAM
+{
+    public class SalidaEntityTypeConfiguration : IEntityTypeConfiguration<Salida>
+    {
+        public void Configure(EntityTypeBuilder<Salida> builder)
+        {
+            builder
+                .HasKey(x => x.Id);
+
+            builder
+                .HasOne(x => x.EStablecimiento)
+                .WithMany(x => x.Salida)
+                .HasForeignKey(x => x.id_establecimiento)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .Property(x => x.Id)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("id")
+                .HasPrecision(32, 0)
+                .HasDefaultValueSql("nextval('\"BodegaDESAM_dev\".salida_id_seq'::regclass)");
+
+            builder
+                .Property(x => x.Observacion)
+                .HasColumnName("observacion")
+                .HasColumnType("character varying"); 
+            
+            builder
+                .Property(x => x.Solicitante)
+                .HasColumnName("solicitante")
+                .HasColumnType("character varying");
+
+            builder
+                .Property(x => x.Fecha)
+                .HasColumnName("fecha")
+                .HasColumnType("date");
+
+            builder
+                .ToTable("salida", "BodegaDESAM_dev");
+        }
+    }
+}

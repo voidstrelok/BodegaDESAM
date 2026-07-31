@@ -1,0 +1,42 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class CategoriaProductoService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public CategoriaProductoService(IDbContextFactory<PostgresDataContext> db)
+        {
+            _factory = db;
+        }
+
+        public async Task<List<CategoriaProducto>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.CategoriaProducto
+                .OrderBy(c => c.Nombre)
+                .ToListAsync();
+        }
+
+        public async Task<CategoriaProducto?> GetByIdAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.CategoriaProducto.FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task CreateAsync(CategoriaProducto categoria)
+        {
+            using var db = _factory.CreateDbContext();
+            db.CategoriaProducto.Add(categoria);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task UpdateAsync(CategoriaProducto categoria)
+        {
+            using var db = _factory.CreateDbContext();
+            db.CategoriaProducto.Update(categoria);
+            await db.SaveChangesAsync();
+        }
+    }
+}

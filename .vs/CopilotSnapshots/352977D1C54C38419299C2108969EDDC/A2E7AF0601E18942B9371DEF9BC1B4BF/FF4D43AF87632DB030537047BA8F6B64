@@ -1,0 +1,48 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace BodegaDESAM.Services
+{
+    public class EntradaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public EntradaService(IDbContextFactory<PostgresDataContext> db)
+        {
+            _factory = db;
+        }
+
+        public async Task<List<Entrada>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Entrada
+                .Include(e=>e.Proveedor)
+                .Include(e=>e.DetalleEntrada)
+                .OrderBy(e => e.Id)
+                .ToListAsync();
+        }
+
+        public async Task<Entrada?> GetByIdAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Entrada
+                .Include(e => e.DetalleEntrada).ThenInclude(d=>d.Producto)
+                .Include(e => e.Proveedor)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
+        public async Task CreateAsync(Entrada entrada)
+        {
+            using var db = _factory.CreateDbContext();
+            db.Entrada.Add(entrada);
+            await db.SaveChangesAsync();
+        }
+
+
+        public async Task UpdateAsync(Entrada entrada)
+        {
+            using var db = _factory.CreateDbContext();
+            db.Entrada.Update(entrada);
+            await db.SaveChangesAsync();
+        }
+    }
+}

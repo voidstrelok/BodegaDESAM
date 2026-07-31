@@ -1,0 +1,84 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class SalidaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public SalidaService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<Salida>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Salida
+                .AsNoTracking()
+                .Include(s => s.EStablecimiento)
+                .Include(s => s.DetalleSalida)
+                .OrderByDescending(s => s.Id)
+                .ToListAsync();
+        }
+
+        public async Task<Salida?> GetByIdAsync(int id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.Salida
+                .Include(s => s.EStablecimiento)
+                .Include(s => s.DetalleSalida)
+                .ThenInclude(d => d.Producto)
+                .ThenInclude(p => p.Marca)
+                .Include(s => s.DetalleSalida)
+                .ThenInclude(d => d.Producto)
+                .ThenInclude(p => p.CategoriaProducto)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public async Task CreateAsync(Salida salida)
+        {
+            if (string.IsNullOrWhiteSpace(salida.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(salida));
+
+            using var db = _factory.CreateDbContext();
+            db.Salida.Add(salida);
+            await db.SaveChangesAsync();
+        }
+
+        public Task CreateAsync(Salida salida, string idUsuario)
+        {
+            salida.IdUsuario = idUsuario;
+            return CreateAsync(salida);
+        }
+
+        public async Task UpdateAsync(Salida salida)
+        {
+            if (string.IsNullOrWhiteSpace(salida.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(salida));
+
+            using var db = _factory.CreateDbContext();
+            db.Salida.Update(salida);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task<bool> DeleteAsync(long id)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var salida = await db.Salida
+                .Include(s => s.DetalleSalida)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (salida is null)
+                return false;
+
+            if (salida.DetalleSalida is not null && salida.DetalleSalida.Count > 0)
+                db.DetalleSalida.RemoveRange(salida.DetalleSalida);
+
+            db.Salida.Remove(salida);
+            await db.SaveChangesAsync();
+            return true;
+        }
+    }
+}

@@ -1,0 +1,18 @@
+﻿@rendermode InteractiveServer
+@using BodegaDESAM.Services
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@implements IDisposable
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var isDark = await JS.InvokeAsync<bool>("themeManager.loadPreference");
+            ThemeService.SetDarkMode(isDark);
+        }
+    }
+
+    public void Dispose() { }
+}

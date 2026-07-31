@@ -1,0 +1,365 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Data;
+
+public static class AppSeed
+{
+    public static async Task SeedAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PostgresDataContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+
+        // Idempotente: si ya hay datos básicos, no volver a insertar
+        if (await db.Marca.AnyAsync() || await db.CategoriaProducto.AnyAsync() || await db.Producto.AnyAsync())
+            return;
+
+        // ============ MARCAS ============
+        var marcas = new[]
+        {
+            new Marca { Nombre = "Genérica" },
+            new Marca { Nombre = "3M" },
+            new Marca { Nombre = "Honeywell" },
+            new Marca { Nombre = "Kimberly-Clark" },
+            new Marca { Nombre = "Ansell" }
+        };
+        db.Marca.AddRange(marcas);
+        await db.SaveChangesAsync();
+
+        // ============ MODELOS ============
+        var modelos = new[]
+        {
+            new Modelo { Nombre = "N95 Standard", id_marca = marcas[1].Id },
+            new Modelo { Nombre = "N95 Plus", id_marca = marcas[1].Id },
+            new Modelo { Nombre = "Nitrile Pro", id_marca = marcas[4].Id },
+            new Modelo { Nombre = "Latex Classic", id_marca = marcas[4].Id },
+            new Modelo { Nombre = "Basic Protection", id_marca = marcas[2].Id }
+        };
+        db.Modelo.AddRange(modelos);
+        await db.SaveChangesAsync();
+
+        // ============ PROVEEDORES ============
+        var proveedores = new[]
+        {
+            new Proveedor 
+            { 
+                Nombre = "Distribuidora Medical Sur",
+                RUT = "76.123.456-7",
+                Direccion = "Av. Providencia 1234, Santiago",
+                Telefono = "+56 2 2345 6789",
+                Email = "ventas@medicalsur.cl",
+                PersonaContacto = "Juan Pérez",
+                Activo = true
+            },
+            new Proveedor 
+            { 
+                Nombre = "Insumos Hospitalarios Norte",
+                RUT = "77.987.654-3",
+                Direccion = "Los Carrera 567, La Serena",
+                Telefono = "+56 51 234 5678",
+                Email = "contacto@inhospnorte.cl",
+                PersonaContacto = "María González",
+                Activo = true
+            },
+            new Proveedor 
+            { 
+                Nombre = "Protección Industrial Ltda",
+                RUT = "78.456.789-0",
+                Direccion = "Av. España 890, Valparaíso",
+                Telefono = "+56 32 456 7890",
+                Email = "ventas@protecind.cl",
+                PersonaContacto = "Carlos Rodríguez",
+                Activo = true
+            }
+        };
+        db.Proveedor.AddRange(proveedores);
+        await db.SaveChangesAsync();
+
+        // ============ CATEGORÍAS ============
+        var categorias = new[]
+        {
+            new CategoriaProducto { Nombre = "Protección Respiratoria" },
+            new CategoriaProducto { Nombre = "Protección de Manos" },
+            new CategoriaProducto { Nombre = "Protección Corporal" },
+            new CategoriaProducto { Nombre = "Higiene y Desinfección" },
+            new CategoriaProducto { Nombre = "Equipamiento Médico" }
+        };
+        db.CategoriaProducto.AddRange(categorias);
+        await db.SaveChangesAsync();
+
+        // ============ PRODUCTOS ============
+        var productos = new[]
+        {
+            new Producto { Nombre = "Mascarilla N95", id_categoria_producto = categorias[0].Id },
+            new Producto { Nombre = "Guantes de Nitrilo", id_categoria_producto = categorias[1].Id },
+            new Producto { Nombre = "Guantes de Látex", id_categoria_producto = categorias[1].Id },
+            new Producto { Nombre = "Bata Quirúrgica", id_categoria_producto = categorias[2].Id },
+            new Producto { Nombre = "Alcohol Gel 500ml", id_categoria_producto = categorias[3].Id },
+            new Producto { Nombre = "Termómetro Digital", id_categoria_producto = categorias[4].Id },
+            new Producto { Nombre = "Mascarilla Quirúrgica", id_categoria_producto = categorias[0].Id },
+            new Producto { Nombre = "Protector Facial", id_categoria_producto = categorias[2].Id }
+        };
+        db.Producto.AddRange(productos);
+        await db.SaveChangesAsync();
+
+        // ============ BODEGA CENTRAL (única) ============
+        var bodegaCentral = new Bodega
+        {
+            Codigo = "BOD-CENTRAL",
+            Nombre = "Bodega Central DESAM",
+            Direccion = "Av. Libertador Bernardo O'Higgins 1234, Santiago",
+            EsPrincipal = true,
+            Activa = true
+        };
+        db.Bodega.Add(bodegaCentral);
+        await db.SaveChangesAsync();
+
+        var bodegas = new[] { bodegaCentral };
+
+        // ============ UBICACIONES ============
+        var ubicaciones = new[]
+        {
+            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "01", Nivel = "1", Posicion = "A", CodigoCompleto = "A-01-1-A", CapacidadMaxima = 100 },
+            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "01", Nivel = "2", Posicion = "B", CodigoCompleto = "A-01-2-B", CapacidadMaxima = 100 },
+            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "02", Nivel = "1", Posicion = "A", CodigoCompleto = "A-02-1-A", CapacidadMaxima = 150 },
+            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "B", Estante = "01", Nivel = "1", Posicion = "A", CodigoCompleto = "B-01-1-A", CapacidadMaxima = 200 },
+            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "B", Estante = "02", Nivel = "3", Posicion = "C", CodigoCompleto = "B-02-3-C", CapacidadMaxima = 80 },
+        };
+        db.Ubicacion.AddRange(ubicaciones);
+        await db.SaveChangesAsync();
+
+        // ============ LOTES ============
+        var lotes = new[]
+        {
+            new Lote 
+            { 
+                id_producto = productos[0].Id, 
+                Codigo = "LOTE-2026-001",
+                FechaFabricacion = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-2)),
+                FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(2)),
+                Observaciones = "Primer lote de mascarillas N95"
+            },
+            new Lote 
+            { 
+                id_producto = productos[1].Id, 
+                Codigo = "LOTE-2026-002",
+                FechaFabricacion = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+                FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(3)),
+                Observaciones = "Guantes nitrilo talla M"
+            },
+            new Lote 
+            { 
+                id_producto = productos[4].Id, 
+                Codigo = "LOTE-2026-003",
+                FechaFabricacion = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-3)),
+                FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                Observaciones = "Alcohol gel importado"
+            }
+        };
+        db.Lote.AddRange(lotes);
+        await db.SaveChangesAsync();
+
+        // ============ ESTABLECIMIENTOS ============
+        var establecimientos = new[]
+        {
+            new Establecimiento { Nombre = "Hospital Regional Santiago" },
+            new Establecimiento { Nombre = "Clínica Las Condes" },
+            new Establecimiento { Nombre = "Centro de Salud Familiar Norte" },
+            new Establecimiento { Nombre = "Hospital Base Valdivia" }
+        };
+        db.Establecimiento.AddRange(establecimientos);
+        await db.SaveChangesAsync();
+
+        // ============ ENTRADAS ============
+        var entrada1 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
+            id_bodega = bodegas[0].Id,
+            id_proveedor = proveedores[0].Id,
+            NDocumento = "FAC-2026-001",
+            Observacion = "Carga inicial - Protección respiratoria",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() 
+                { 
+                    id_producto = productos[0].Id, 
+                    id_marca = marcas[1].Id,
+                    id_modelo = modelos[0].Id,
+                    id_lote = lotes[0].Id,
+                    id_ubicacion = ubicaciones[0].Id,
+                    Cantidad = 500,
+                    FechaVencimiento = lotes[0].FechaVencimiento
+                },
+                new() 
+                { 
+                    id_producto = productos[6].Id, 
+                    id_marca = marcas[3].Id,
+                    Cantidad = 1000,
+                    FechaVencimiento = null
+                }
+            }
+        };
+
+        var entrada2 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-20)),
+            id_bodega = bodegas[0].Id,
+            id_proveedor = proveedores[1].Id,
+            NDocumento = "FAC-2026-002",
+            Observacion = "Reposición guantes",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() 
+                { 
+                    id_producto = productos[1].Id, 
+                    id_marca = marcas[4].Id,
+                    id_modelo = modelos[2].Id,
+                    id_lote = lotes[1].Id,
+                    id_ubicacion = ubicaciones[1].Id,
+                    Cantidad = 200,
+                    FechaVencimiento = lotes[1].FechaVencimiento
+                },
+                new() 
+                { 
+                    id_producto = productos[2].Id, 
+                    id_marca = marcas[4].Id,
+                    id_modelo = modelos[3].Id,
+                    id_ubicacion = ubicaciones[2].Id,
+                    Cantidad = 150,
+                    FechaVencimiento = null
+                }
+            }
+        };
+
+        var entrada3 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-15)),
+            id_bodega = bodegas[0].Id,
+            id_proveedor = proveedores[2].Id,
+            NDocumento = "FAC-2026-003",
+            Observacion = "Material de higiene",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() 
+                { 
+                    id_producto = productos[4].Id, 
+                    id_marca = marcas[0].Id,
+                    id_lote = lotes[2].Id,
+                    id_ubicacion = ubicaciones[3].Id,
+                    Cantidad = 300,
+                    FechaVencimiento = lotes[2].FechaVencimiento
+                },
+                new() 
+                { 
+                    id_producto = productos[3].Id, 
+                    id_marca = marcas[3].Id,
+                    id_ubicacion = ubicaciones[4].Id,
+                    Cantidad = 80,
+                    FechaVencimiento = null
+                }
+            }
+        };
+
+        var entrada4 = new Entrada
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)),
+            id_bodega = bodegaCentral.Id,
+            id_proveedor = proveedores[0].Id,
+            NDocumento = "FAC-2026-004",
+            Observacion = "Dotación adicional protección",
+            DetalleEntrada = new List<DetalleEntrada>
+            {
+                new() 
+                { 
+                    id_producto = productos[0].Id, 
+                    id_marca = marcas[1].Id,
+                    id_modelo = modelos[1].Id,
+                    id_ubicacion = ubicaciones[0].Id,
+                    Cantidad = 250,
+                    FechaVencimiento = null
+                },
+                new() 
+                { 
+                    id_producto = productos[7].Id, 
+                    id_marca = marcas[2].Id,
+                    id_modelo = modelos[4].Id,
+                    id_ubicacion = ubicaciones[1].Id,
+                    Cantidad = 120,
+                    FechaVencimiento = null
+                }
+            }
+        };
+
+        db.Entrada.Add(entrada1);
+        db.Entrada.Add(entrada2);
+        db.Entrada.Add(entrada3);
+        db.Entrada.Add(entrada4);
+
+        await db.SaveChangesAsync();
+
+        // ============ SALIDAS ============
+        var salida1 = new Salida
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)),
+            id_bodega = bodegas[0].Id,
+            id_establecimiento = establecimientos[0].Id,
+            Solicitante = "Dr. Roberto Silva",
+            Observacion = "Dotación mensual urgencias",
+            DetalleSalida = new List<DetalleSalida>
+            {
+                new() 
+                { 
+                    id_producto = productos[0].Id, 
+                    id_marca = marcas[1].Id,
+                    id_modelo = modelos[0].Id,
+                    id_lote = lotes[0].Id,
+                    Cantidad = 50
+                },
+                new() 
+                { 
+                    id_producto = productos[1].Id, 
+                    id_marca = marcas[4].Id,
+                    id_modelo = modelos[2].Id,
+                    id_lote = lotes[1].Id,
+                    Cantidad = 30
+                }
+            }
+        };
+
+        var salida2 = new Salida
+        {
+            IdUsuario = "seed",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)),
+            id_bodega = bodegas[0].Id,
+            id_establecimiento = establecimientos[1].Id,
+            Solicitante = "Enfermera Jefe - María Soto",
+            Observacion = "Reposición pabellón",
+            DetalleSalida = new List<DetalleSalida>
+            {
+                new() 
+                { 
+                    id_producto = productos[3].Id, 
+                    id_marca = marcas[3].Id,
+                    Cantidad = 20
+                },
+                new() 
+                { 
+                    id_producto = productos[4].Id, 
+                    id_marca = marcas[0].Id,
+                    id_lote = lotes[2].Id,
+                    Cantidad = 40
+                }
+            }
+        };
+
+        db.Salida.Add(salida1);
+        db.Salida.Add(salida2);
+
+        await db.SaveChangesAsync();
+    }
+}

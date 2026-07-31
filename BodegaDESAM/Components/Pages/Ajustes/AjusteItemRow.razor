@@ -1,0 +1,121 @@
+@using BodegaDESAM
+@using BodegaDESAM.Services
+
+<div class="movement-adjustment-item position-relative">
+    <button type="button" class="btn-close position-absolute top-0 end-0 m-1"
+            @onclick="OnRemove" title="Quitar ítem"></button>
+
+    <div class="row g-2">
+         <div class="col-6 col-md-2">
+            <label class="form-label form-label-sm">Tipo</label>
+            <select class="form-select form-select-sm" @bind="Item.TipoAjuste" @bind:after="OnTipoAjusteChanged">
+                <option value="@TipoAjuste.Aumento">Aumento</option>
+                <option value="@TipoAjuste.Disminucion">Disminución</option>
+            </select>
+        </div>
+        @if (Item.TipoAjuste == TipoAjuste.Disminucion)
+        {
+            <div class="col-12">
+                <label class="form-label form-label-sm">Producto y origen de stock</label>
+                <select class="form-select form-select-sm" value="@GetOrigenKey()" @onchange="OnOrigenChanged">
+                    <option value="">-- Seleccione origen disponible --</option>
+                    @foreach (var origen in Origenes) { <option value="@origen.SkuKey">@origen.DisplayText</option> }
+                </select>
+            </div>
+        }
+        <div class="col-12 col-md-4" hidden="@(Item.TipoAjuste == TipoAjuste.Disminucion)">
+            <label class="form-label form-label-sm">Producto</label>
+            <select class="form-select form-select-sm" @bind="Item.id_producto">
+                <option value="0">-- Seleccione --</option>
+                @foreach (var p in Productos)
+                {
+                    <option value="@p.Id">@p.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2" hidden="@(Item.TipoAjuste == TipoAjuste.Disminucion)">
+            <label class="form-label form-label-sm">Marca</label>
+            <select class="form-select form-select-sm" @bind="Item.id_marca">
+                <option value="0">-- Seleccione --</option>
+                @foreach (var m in Marcas)
+                {
+                    <option value="@m.Id">@m.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2" hidden="@(Item.TipoAjuste == TipoAjuste.Disminucion)">
+            <label class="form-label form-label-sm">Modelo</label>
+            <select class="form-select form-select-sm" @bind="Item.id_modelo"><option value="">-- Sin modelo --</option>@foreach(var m in Modelos.Where(x => x.id_marca == Item.id_marca)){<option value="@m.Id">@m.Nombre</option>}</select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label form-label-sm">Cantidad</label>
+            <input type="number" class="form-control form-control-sm" min="1" @bind="Item.Cantidad" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label form-label-sm">Observación</label>
+            <input type="text" class="form-control form-control-sm" @bind="Item.Observacion" />
+        </div>
+
+        @if (Item.TipoAjuste == TipoAjuste.Aumento)
+        {
+            <div class="col-6 col-md-3">
+                <label class="form-label form-label-sm">Fecha Vencimiento</label>
+                <input type="date" class="form-control form-control-sm"
+                       value="@(Item.FechaVencimiento?.ToString("yyyy-MM-dd") ?? "")"
+                       @onchange="OnFechaVencimientoChanged" />
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label form-label-sm">N° Serie (opcional, uno por línea)</label>
+                <textarea class="form-control form-control-sm" rows="3"
+                          placeholder="1 serie por línea (dejar vacío si no aplica)"
+                          @bind="SerieInput" @bind:event="oninput"
+                          @bind:after="NotifySerieChanged"></textarea>
+                @if (!string.IsNullOrWhiteSpace(ErrorSerie))
+                {
+                    <div class="text-danger small mt-1">@ErrorSerie</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetalleAjuste Item { get; set; } = null!;
+    [Parameter, EditorRequired] public List<Producto> Productos { get; set; } = null!;
+    [Parameter, EditorRequired] public List<Marca> Marcas { get; set; } = null!;
+    [Parameter, EditorRequired] public List<Modelo> Modelos { get; set; } = null!;
+    [Parameter, EditorRequired] public List<ProductoSkuDisponible> Origenes { get; set; } = null!;
+    [Parameter] public EventCallback OnRemove { get; set; }
+    [Parameter] public string SerieInput { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SerieInputChanged { get; set; }
+    [Parameter] public string? ErrorSerie { get; set; }
+
+    private void OnFechaVencimientoChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var d))
+            Item.FechaVencimiento = d;
+        else
+            Item.FechaVencimiento = null;
+    }
+
+    private void OnTipoAjusteChanged()
+    {
+        if (Item.TipoAjuste != TipoAjuste.Aumento)
+        {
+            Item.FechaVencimiento = null;
+            SerieInputChanged.InvokeAsync(string.Empty);
+        }
+    }
+
+    private Task NotifySerieChanged() => SerieInputChanged.InvokeAsync(SerieInput);
+
+    private string GetOrigenKey() => Item.id_detalle_entrada_origen.HasValue ? $"E{Item.id_detalle_entrada_origen}" : Item.id_detalle_ajuste_origen.HasValue ? $"A{Item.id_detalle_ajuste_origen}" : string.Empty;
+    private void OnOrigenChanged(ChangeEventArgs e)
+    {
+        var origen = Origenes.FirstOrDefault(x => x.SkuKey == e.Value?.ToString());
+        Item.id_detalle_entrada_origen = origen?.EsAjusteAumento == false ? origen.IdDetalleEntrada : null;
+        Item.id_detalle_ajuste_origen = origen?.IdDetalleAjuste;
+        if (origen == null) { Item.id_producto = 0; Item.id_marca = 0; Item.id_modelo = null; Item.id_lote = null; return; }
+        Item.id_producto = origen.IdProducto; Item.id_marca = origen.IdMarca; Item.id_modelo = origen.IdModelo; Item.id_lote = origen.IdLote;
+    }
+}

@@ -1,0 +1,201 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public enum SeveridadAlerta
+    {
+        Info,
+        Advertencia,
+        Critica
+    }
+
+    public class AlertaDto
+    {
+        public string TipoAlerta { get; set; } = string.Empty;
+        public SeveridadAlerta Severidad { get; set; }
+        public string Mensaje { get; set; } = string.Empty;
+        public int IdReferencia { get; set; }
+    }
+
+    public class AlertaService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+        private readonly InventarioService _inventarioService;
+
+        private const int DiasProximoVencimiento = 30;
+
+        public AlertaService(
+            IDbContextFactory<PostgresDataContext> factory,
+            InventarioService inventarioService)
+        {
+            _factory = factory;
+            _inventarioService = inventarioService;
+        }
+
+        public async Task<List<AlertaDto>> GetAlertasActivasAsync()
+        {
+            var alertas = new List<AlertaDto>();
+
+            alertas.AddRange(await GetAlertasStockBajoAsync());
+            alertas.AddRange(await GetAlertasLotesPorVencerAsync());
+
+            return alertas;
+        }
+
+        /// <summary>
+        /// Productos cuyo stock actual es igual o inferior al StockMinimo definido.
+        /// </summary>
+        public async Task<List<AlertaDto>> GetAlertasStockBajoAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            var productosConMinimo = await db.Producto
+                .AsNoTracking()
+                .Where(p => p.StockMinimo.HasValue && p.StockMinimo.Value > 0)
+                .Select(p => new { p.Id, p.Nombre, p.StockMinimo })
+                .ToListAsync();
+
+            if (productosConMinimo.Count == 0)
+                return new List<AlertaDto>();
+
+            var inventario = await _inventarioService.GetInventarioActualAsync();
+
+            var alertas = new List<AlertaDto>();
+
+            foreach (var producto in productosConMinimo)
+            {
+                var stockActual = inventario
+                    .Where(i => i.IdProducto == producto.Id)
+                    .Sum(i => i.StockActual);
+
+                if (stockActual <= producto.StockMinimo!.Value)
+                {
+                    var severidad = stockActual == 0
+                        ? SeveridadAlerta.Critica
+                        : SeveridadAlerta.Advertencia;
+
+                    alertas.Add(new AlertaDto
+                    {
+                        TipoAlerta = "StockBajo",
+                        Severidad = severidad,
+                        Mensaje = stockActual == 0
+                            ? $"Sin stock: '{producto.Nombre}' (mínimo: {producto.StockMinimo})"
+                            : $"Stock bajo: '{producto.Nombre}' — actual: {stockActual}, mínimo: {producto.StockMinimo}",
+                        IdReferencia = producto.Id
+                    });
+                }
+            }
+
+            return alertas;
+        }
+
+        /// <summary>
+        /// Lotes con FechaVencimiento dentro de los próximos 30 días (o ya vencidos),
+        /// y DetalleEntrada con FechaVencimiento directa (sin lote o lote sin fecha).
+        /// </summary>
+        public async Task<List<AlertaDto>> GetAlertasLotesPorVencerAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            var hoy = DateOnly.FromDateTime(DateTime.Today);
+            var limite = DateOnly.FromDateTime(DateTime.Today.AddDays(DiasProximoVencimiento));
+
+            var alertas = new List<AlertaDto>();
+
+            // 1) Alertas desde Lote.FechaVencimiento
+            var lotesPorVencer = await db.Lote
+                .AsNoTracking()
+                .Include(l => l.Producto)
+                .Where(l => l.FechaVencimiento.HasValue && l.FechaVencimiento.Value <= limite)
+                .OrderBy(l => l.FechaVencimiento)
+                .ToListAsync();
+
+            foreach (var lote in lotesPorVencer)
+            {
+                var yaVencido = lote.FechaVencimiento!.Value < hoy;
+                var diasRestantes = lote.FechaVencimiento.Value.DayNumber - hoy.DayNumber;
+
+                alertas.Add(new AlertaDto
+                {
+                    TipoAlerta = "LoteVencimiento",
+                    Severidad = yaVencido ? SeveridadAlerta.Critica : SeveridadAlerta.Advertencia,
+                    Mensaje = yaVencido
+                        ? $"Lote vencido: '{lote.Producto?.Nombre}' — Lote {lote.Codigo} (venció el {lote.FechaVencimiento.Value:dd/MM/yyyy})"
+                        : $"Lote por vencer: '{lote.Producto?.Nombre}' — Lote {lote.Codigo} — vence en {diasRestantes} día(s) ({lote.FechaVencimiento.Value:dd/MM/yyyy})",
+                    IdReferencia = (int)lote.Id
+                });
+            }
+
+            // 2) Alertas desde DetalleEntrada.FechaVencimiento (sin lote, o lote sin fecha)
+            var detallesPorVencer = await db.DetalleEntrada
+                .AsNoTracking()
+                .Include(d => d.Producto)
+                .Include(d => d.Lote)
+                .Where(d => d.FechaVencimiento.HasValue
+                    && d.FechaVencimiento.Value <= limite
+                    && (d.id_lote == null || d.Lote!.FechaVencimiento == null))
+                .GroupBy(d => new { d.id_producto, d.FechaVencimiento })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.FechaVencimiento,
+                    ProductoNombre = g.First().Producto != null ? g.First().Producto.Nombre : "Desconocido"
+                })
+                .OrderBy(d => d.FechaVencimiento)
+                .ToListAsync();
+
+            foreach (var detalle in detallesPorVencer)
+            {
+                var fecha = detalle.FechaVencimiento!.Value;
+                var yaVencido = fecha < hoy;
+                var diasRestantes = fecha.DayNumber - hoy.DayNumber;
+
+                alertas.Add(new AlertaDto
+                {
+                    TipoAlerta = "LoteVencimiento",
+                    Severidad = yaVencido ? SeveridadAlerta.Critica : SeveridadAlerta.Advertencia,
+                    Mensaje = yaVencido
+                        ? $"Producto vencido: '{detalle.ProductoNombre}' (venció el {fecha:dd/MM/yyyy})"
+                        : $"Producto por vencer: '{detalle.ProductoNombre}' — vence en {diasRestantes} día(s) ({fecha:dd/MM/yyyy})",
+                    IdReferencia = detalle.id_producto
+                });
+            }
+
+            // 3) Alertas desde DetalleAjuste.FechaVencimiento (ajustes de aumento con fecha de vencimiento)
+            var ajustesPorVencer = await db.DetalleAjuste
+                .AsNoTracking()
+                .Include(d => d.Producto)
+                .Where(d => d.TipoAjuste == TipoAjuste.Aumento
+                    && d.FechaVencimiento.HasValue
+                    && d.FechaVencimiento.Value <= limite)
+                .GroupBy(d => new { d.id_producto, d.FechaVencimiento })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.FechaVencimiento,
+                    ProductoNombre = g.First().Producto != null ? g.First().Producto.Nombre : "Desconocido"
+                })
+                .OrderBy(d => d.FechaVencimiento)
+                .ToListAsync();
+
+            foreach (var detalle in ajustesPorVencer)
+            {
+                var fecha = detalle.FechaVencimiento!.Value;
+                var yaVencido = fecha < hoy;
+                var diasRestantes = fecha.DayNumber - hoy.DayNumber;
+
+                alertas.Add(new AlertaDto
+                {
+                    TipoAlerta = "LoteVencimiento",
+                    Severidad = yaVencido ? SeveridadAlerta.Critica : SeveridadAlerta.Advertencia,
+                    Mensaje = yaVencido
+                        ? $"Producto vencido (ajuste): '{detalle.ProductoNombre}' (venció el {fecha:dd/MM/yyyy})"
+                        : $"Producto por vencer (ajuste): '{detalle.ProductoNombre}' — vence en {diasRestantes} día(s) ({fecha:dd/MM/yyyy})",
+                    IdReferencia = detalle.id_producto
+                });
+            }
+
+            return alertas;
+        }
+    }
+}

@@ -1,0 +1,78 @@
+﻿@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+
+@inject ProductoService ProductoService
+@inject MarcaService MarcaService
+@inject NavigationManager Nav
+
+<h3>@Titulo</h3>
+
+<EditForm Model="producto" OnValidSubmit="Guardar" FormName="EditarProducto">
+    <DataAnnotationsValidator />
+    <div>
+        <label>Nombre</label>
+        <InputText @bind-Value="producto.Nombre" />
+        <ValidationMessage For="@(() => producto.Nombre)" />
+    </div>
+
+    <div>
+        <label>Marca</label>
+        <InputSelect class="form-select" @bind-Value="producto.id_marca">
+            <option value="0">-- Seleccionar Marca --</option>
+            @foreach (var marca in Marcas)
+            {
+                <option value="@marca.Id">@marca.Nombre</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="@(() => producto.id_marca)" />
+    </div>
+
+    <div>
+        <label>Modelo</label>
+        <InputText @bind-Value="producto.Modelo" />
+    </div>
+
+    <button type="submit">Guardar</button>
+    <button type="button" @onclick="Volver">Cancelar</button>
+</EditForm>
+
+@code {
+    [Parameter] 
+    public int? Id { get; set; }
+    [SupplyParameterFromForm]
+    Producto producto { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Marca> Marcas { get; set; } = new();
+
+    string Titulo => Id == null ? "Nuevo Producto" : "Editar Producto";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Marcas = await MarcaService.GetAllAsync();
+        
+        if (Id != null)
+        {
+            var existente = await ProductoService.GetByIdAsync((int)Id);
+            if (existente != null)
+                producto = existente;
+        }
+    }
+
+    async void Guardar()
+    {
+        if (Id == null)
+        {
+            await ProductoService.CreateAsync(producto);
+        }
+        else
+            await ProductoService.UpdateAsync(producto);
+
+        Nav.NavigateTo("/productos");
+    }
+
+    void Volver() => Nav.NavigateTo("/productos");
+}

@@ -1,0 +1,11 @@
+﻿{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "PostgresDataContext": "Password=dev;Username=postgres;Database=postgres;Host=localhost;Persist Security Info=True;Search Path=public"
+  }
+}

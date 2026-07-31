@@ -1,0 +1,93 @@
+﻿// Theme Manager for BodegaDESAM
+// Gestiona el cambio entre tema claro y oscuro con persistencia en localStorage
+
+(function () {
+    const THEME_KEY = 'bodega-theme';
+    const DARK_THEME = 'dark';
+    const LIGHT_THEME = 'light';
+
+    // Aplicar tema al documento
+    function applyTheme(theme) {
+        if (theme === DARK_THEME) {
+            document.documentElement.setAttribute('data-theme', DARK_THEME);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }
+
+    // Obtener preferencia del sistema
+    function getSystemPreference() {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return DARK_THEME;
+        }
+        return LIGHT_THEME;
+    }
+
+    // Cargar tema guardado o usar preferencia del sistema
+    function loadSavedTheme() {
+        try {
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            return savedTheme || getSystemPreference();
+        } catch (e) {
+            console.warn('No se pudo acceder a localStorage:', e);
+            return getSystemPreference();
+        }
+    }
+
+    // Guardar tema en localStorage
+    function saveTheme(theme) {
+        try {
+            localStorage.setItem(THEME_KEY, theme);
+        } catch (e) {
+            console.warn('No se pudo guardar el tema:', e);
+        }
+    }
+
+    // Inicializar tema al cargar la página
+    function initTheme() {
+        const theme = loadSavedTheme();
+        applyTheme(theme);
+        return theme === DARK_THEME;
+    }
+
+    // Alternar entre temas
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === DARK_THEME ? LIGHT_THEME : DARK_THEME;
+        applyTheme(newTheme);
+        saveTheme(newTheme);
+        return newTheme === DARK_THEME;
+    }
+
+    // Obtener estado actual del tema
+    function isDarkMode() {
+        return document.documentElement.getAttribute('data-theme') === DARK_THEME;
+    }
+
+    // Exponer funciones globales para Blazor
+    window.loadThemePreference = function () {
+        return initTheme();
+    };
+
+    window.toggleTheme = function () {
+        return toggleTheme();
+    };
+
+    window.isDarkMode = function () {
+        return isDarkMode();
+    };
+
+    // Aplicar tema inmediatamente al cargar el script (evita flash)
+    initTheme();
+
+    // Escuchar cambios en la preferencia del sistema
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            // Solo actualizar si no hay preferencia guardada
+            if (!localStorage.getItem(THEME_KEY)) {
+                const theme = e.matches ? DARK_THEME : LIGHT_THEME;
+                applyTheme(theme);
+            }
+        });
+    }
+})();

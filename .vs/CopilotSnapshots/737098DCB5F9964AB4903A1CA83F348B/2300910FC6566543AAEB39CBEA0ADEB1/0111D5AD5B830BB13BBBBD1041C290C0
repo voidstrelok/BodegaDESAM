@@ -1,0 +1,82 @@
+﻿@rendermode InteractiveServer
+@using BodegaDESAM.Services
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Suscribirse a cambios de navegación
+        Navigation.LocationChanged += OnLocationChanged;
+
+        // Suscribirse a cambios de tema
+        ThemeService.OnThemeChanged += OnThemeChangedHandler;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // CRÍTICO: Sincronizar EN CADA render, no solo el primero
+        // Esto asegura que al navegar, el tema se aplique
+        await SynchronizeTheme();
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // Cuando cambia la ubicación (navegación), forzar sincronización
+        _ = SynchronizeTheme();
+    }
+
+    private async Task SynchronizeTheme()
+    {
+        try
+        {
+            // Leer el estado actual del DOM (aplicado por theme-manager.js)
+            var isDarkFromDOM = await JS.InvokeAsync<bool>("isDarkMode");
+
+            // Si el servicio y el DOM no coinciden, actualizar el servicio
+            if (ThemeService.IsDarkMode != isDarkFromDOM)
+            {
+                ThemeService.SetDarkMode(isDarkFromDOM);
+            }
+
+            // Siempre aplicar al DOM para asegurar consistencia
+            await ApplyThemeToDOMAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sincronizando tema: {ex.Message}");
+        }
+    }
+
+    private void OnThemeChangedHandler()
+    {
+        _ = ApplyThemeToDOMAsync();
+    }
+
+    private async Task ApplyThemeToDOMAsync()
+    {
+        try
+        {
+            if (ThemeService.IsDarkMode)
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.setAttribute('data-theme', 'dark')");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("eval", "document.documentElement.removeAttribute('data-theme')");
+            }
+        }
+        catch
+        {
+            // Ignorar errores de JS
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        ThemeService.OnThemeChanged -= OnThemeChangedHandler;
+    }
+}

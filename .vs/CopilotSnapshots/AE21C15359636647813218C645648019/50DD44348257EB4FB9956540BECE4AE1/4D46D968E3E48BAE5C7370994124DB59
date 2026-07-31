@@ -1,0 +1,213 @@
+﻿@page "/ajustes/nuevo"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AjusteInventarioService AjusteService
+@inject BodegaService BodegaService
+@inject ProductoService ProductoService
+@inject MarcaService MarcaService
+@inject ModeloService ModeloService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<h3 class="page-title mb-3">Nuevo Ajuste de Inventario</h3>
+
+<EditForm Model="ajuste" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+
+    <div class="card-section p-3 mb-3">
+        <h5 class="mb-3">Datos del ajuste</h5>
+
+        <div class="mb-2">
+            <label class="form-label">Bodega</label>
+            <input class="form-control" value="@bodegaNombre" readonly />
+        </div>
+
+        <div class="mb-2">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-control" @bind="fechaStr" />
+        </div>
+
+        <div class="mb-2">
+            <label class="form-label">Motivo <span class="text-danger">*</span></label>
+            <InputText class="form-control" @bind-Value="ajuste.Motivo" placeholder="Ej: Merma, conteo físico, pérdida..." />
+            <ValidationMessage For="() => ajuste.Motivo" />
+        </div>
+
+        <div class="mb-2">
+            <label class="form-label">Observación</label>
+            <InputText class="form-control" @bind-Value="ajuste.Observacion" />
+        </div>
+    </div>
+
+    <div class="card-section p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">Ítems del ajuste</h5>
+            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AgregarItem">+ Agregar ítem</button>
+        </div>
+
+        @if (ajuste.DetalleAjuste.Count == 0)
+        {
+            <p class="text-muted small">Agregue al menos un ítem.</p>
+        }
+        else
+        {
+            @for (int i = 0; i < ajuste.DetalleAjuste.Count; i++)
+            {
+                var idx = i;
+                var item = ajuste.DetalleAjuste.ElementAt(idx);
+                <div class="border rounded p-2 mb-2 position-relative">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-1"
+                            @onclick="() => QuitarItem(idx)" title="Quitar ítem"></button>
+
+                    <div class="row g-2">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label form-label-sm">Producto</label>
+                            <select class="form-select form-select-sm" value="@item.id_producto"
+                                    @onchange="e => SetProducto(item, e.Value)">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var p in productos)
+                                {
+                                    <option value="@p.Id">@p.Nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">Marca</label>
+                            <select class="form-select form-select-sm" value="@item.id_marca"
+                                    @onchange="e => SetMarca(item, e.Value)">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var m in marcas)
+                                {
+                                    <option value="@m.Id">@m.Nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">Tipo</label>
+                            <select class="form-select form-select-sm" value="@item.TipoAjuste"
+                                    @onchange="e => SetTipo(item, e.Value)">
+                                <option value="Aumento">Aumento</option>
+                                <option value="Disminucion">Disminución</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">Cantidad</label>
+                            <input type="number" class="form-control form-control-sm" min="1"
+                                   value="@item.Cantidad"
+                                   @onchange="e => SetCantidad(item, e.Value)" />
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">Observación</label>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="@item.Observacion"
+                                   @onchange="e => item.Observacion = e.Value?.ToString()" />
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMsg))
+    {
+        <div class="alert alert-danger">@errorMsg</div>
+    }
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@guardando">
+            @(guardando ? "Guardando..." : "Guardar Ajuste")
+        </button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    private AjusteInventario ajuste = new() { DetalleAjuste = new List<DetalleAjuste>() };
+    private string bodegaNombre = "Cargando...";
+    private string fechaStr = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    private List<Producto> productos = new();
+    private List<Marca> marcas = new();
+    private bool guardando;
+    private string? errorMsg;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var bodega = await BodegaService.GetPrincipalAsync();
+        if (bodega != null)
+        {
+            ajuste.id_bodega = bodega.Id;
+            bodegaNombre = bodega.Nombre;
+        }
+
+        productos = await ProductoService.GetAllAsync();
+        marcas = await MarcaService.GetAllAsync();
+    }
+
+    private void AgregarItem()
+    {
+        ajuste.DetalleAjuste.Add(new DetalleAjuste { Cantidad = 1, TipoAjuste = TipoAjuste.Aumento });
+    }
+
+    private void QuitarItem(int idx)
+    {
+        var lista = ajuste.DetalleAjuste.ToList();
+        lista.RemoveAt(idx);
+        ajuste.DetalleAjuste = lista;
+    }
+
+    private async Task Guardar()
+    {
+        errorMsg = null;
+
+        if (DateOnly.TryParse(fechaStr, out var fecha))
+            ajuste.Fecha = fecha;
+
+        if (!ajuste.DetalleAjuste.Any())
+        {
+            errorMsg = "Debe agregar al menos un ítem al ajuste.";
+            return;
+        }
+
+        var itemInvalido = ajuste.DetalleAjuste.FirstOrDefault(d => d.id_producto == 0 || d.id_marca == 0 || d.Cantidad < 1);
+        if (itemInvalido != null)
+        {
+            errorMsg = "Todos los ítems deben tener producto, marca y cantidad válidos.";
+            return;
+        }
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        ajuste.IdUsuario = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "sistema";
+
+        guardando = true;
+        try
+        {
+            await AjusteService.CreateAsync(ajuste);
+            Nav.NavigateTo("/ajustes");
+        }
+        catch (Exception ex)
+        {
+            errorMsg = ex.Message;
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Cancelar() => Nav.NavigateTo("/ajustes");
+
+    private static void SetProducto(DetalleAjuste item, object? val) =>
+        item.id_producto = int.TryParse(val?.ToString(), out var v) ? v : 0;
+
+    private static void SetMarca(DetalleAjuste item, object? val) =>
+        item.id_marca = long.TryParse(val?.ToString(), out var v) ? v : 0;
+
+    private static void SetTipo(DetalleAjuste item, object? val) =>
+        item.TipoAjuste = Enum.TryParse<TipoAjuste>(val?.ToString(), out var v) ? v : TipoAjuste.Aumento;
+
+    private static void SetCantidad(DetalleAjuste item, object? val) =>
+        item.Cantidad = long.TryParse(val?.ToString(), out var v) && v > 0 ? v : 1;
+}

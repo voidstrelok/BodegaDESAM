@@ -1,0 +1,101 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">BodegaDESAM</a>
+        <AuthorizeView>
+            <Authorized Context="userCtx">
+                <div class="text-light small ms-auto text-truncate" style="max-width: 14rem;">
+                    @userCtx.User.Identity?.Name
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable">
+    <nav class="flex-column py-2">
+        <div class="px-3 text-uppercase small text-light opacity-75 mt-2 mb-1">Cuenta</div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-2">
+                    <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </NavLink>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-2">
+                    <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="login">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Login</span>
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <Authorized Context="authCtx">
+                <div class="px-3 text-uppercase small text-light opacity-75 mt-3 mb-1">Reportes</div>
+                <div class="nav-item px-2">
+                    <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="inventario">
+                        <i class="bi bi-list-check"></i>
+                        <span>Inventario</span>
+                    </NavLink>
+                </div>
+
+                <AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega">
+                    <Authorized Context="movCtx">
+                        <div class="px-3 text-uppercase small text-light opacity-75 mt-3 mb-1">Movimientos</div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="entradas" Match="NavLinkMatch.All">
+                                <i class="bi bi-box-arrow-in-down"></i>
+                                <span>Entradas</span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="salidas">
+                                <i class="bi bi-box-arrow-up"></i>
+                                <span>Salidas</span>
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.Admin">
+                    <Authorized Context="adminCtx">
+                        <div class="px-3 text-uppercase small text-light opacity-75 mt-3 mb-1">Maestros</div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="productos">
+                                <i class="bi bi-archive-fill"></i>
+                                <span>Productos</span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="marcas">
+                                <i class="bi bi-r-circle"></i>
+                                <span>Marcas</span>
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="proveedores">
+                                <i class="bi bi-truck"></i>
+                                <span>Proveedores</span>
+                            </NavLink>
+                        </div>
+
+                        <div class="px-3 text-uppercase small text-light opacity-75 mt-3 mb-1">Administración</div>
+                        <div class="nav-item px-2">
+                            <NavLink class="nav-link d-flex align-items-center gap-2 rounded px-3" href="admin/usuarios">
+                                <i class="bi bi-people"></i>
+                                <span>Usuarios</span>
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+</div>
+

@@ -1,0 +1,271 @@
+@page "/ajustes/nuevo"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AjusteInventarioService AjusteService
+@inject BodegaService BodegaService
+@inject ProductoService ProductoService
+@inject MarcaService MarcaService
+@inject ModeloService ModeloService
+@inject LoteService LoteService
+@inject InventarioService InventarioService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<div class="movement-form-header">
+    <div>
+        <span class="movement-form-eyebrow">Movimientos de inventario</span>
+        <h3 class="page-title mb-0">Nuevo Ajuste de Inventario</h3>
+    </div>
+</div>
+
+<EditForm Model="ajuste" OnValidSubmit="Guardar" class="movement-form">
+    <DataAnnotationsValidator />
+
+    <section class="card-section movement-form-panel mb-3">
+        <div class="movement-form-panel-header">
+            <div class="movement-form-panel-icon"><i class="bi bi-sliders"></i></div>
+            <div><h5>Información del ajuste</h5><p>Define cuándo y por qué se corrige el inventario.</p></div>
+        </div>
+        <div class="movement-form-panel-body">
+        <div class="row g-3">
+
+        <div class="col-12 col-md-4">
+            <label class="form-label">Bodega</label>
+            <input class="form-control" value="@bodegaNombre" readonly />
+        </div>
+
+        <div class="col-12 col-md-3">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-control"
+                   value="@ajuste.Fecha.ToString("yyyy-MM-dd")"
+                   @onchange="OnFechaChanged" />
+        </div>
+
+        <div class="col-12 col-md-5">
+            <label class="form-label">Motivo <span class="text-danger">*</span></label>
+            <InputText class="form-control" @bind-Value="ajuste.Motivo" placeholder="Ej: Merma, conteo físico, pérdida..." />
+            <ValidationMessage For="() => ajuste.Motivo" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">Observación</label>
+            <InputText class="form-control" @bind-Value="ajuste.Observacion" />
+        </div>
+        </div>
+        </div>
+    </section>
+
+    <div class="movement-form-section-header">
+        <div><h5>Ítems del ajuste</h5><p>Agrega aumentos o disminuciones de existencias.</p></div>
+        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AgregarItem"><i class="bi bi-plus-lg me-1"></i>Agregar ítem</button>
+    </div>
+    <section class="card-section movement-form-items mb-3">
+        <div class="movement-form-items-body">
+        <div class="d-none">
+            <h5 class="mb-0">Ítems del ajuste</h5>
+            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AgregarItem">+ Agregar ítem</button>
+        </div>
+
+        @if (items.Count == 0)
+        {
+            <p class="text-muted small">Agregue al menos un ítem.</p>
+        }
+        else
+        {
+            @for (int i = 0; i < items.Count; i++)
+            {
+                var idx = i;
+                <AjusteItemRow Item="items[idx]"
+                               Productos="productos"
+                               Marcas="marcas"
+                               Modelos="modelos"
+                               Origenes="origenes"
+                               SerieInput="@GetSerieInput(idx)"
+                               SerieInputChanged="@((v) => SetSerieInput(idx, v))"
+                               ErrorSerie="@GetErrorSerie(idx)"
+                               OnRemove="() => QuitarItem(idx)" />
+            }
+        }
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(errorMsg))
+    {
+        <div class="alert alert-danger">@errorMsg</div>
+    }
+
+    <div class="movement-form-actions">
+        <button type="submit" class="btn btn-primary" disabled="@guardando">
+            @(guardando ? "Guardando..." : "Guardar Ajuste")
+        </button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    private AjusteInventario ajuste = new();
+    private List<DetalleAjuste> items = new();
+    private string bodegaNombre = "Cargando...";
+    private List<Producto> productos = new();
+    private List<Marca> marcas = new();
+    private List<Modelo> modelos = new();
+    private List<ProductoSkuDisponible> origenes = new();
+    private bool guardando;
+    private string? errorMsg;
+
+    private Dictionary<int, string> serieInputs = new();
+    private Dictionary<int, string?> erroresSerie = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var bodega = await BodegaService.GetPrincipalAsync();
+        if (bodega != null)
+        {
+            ajuste.id_bodega = bodega.Id;
+            bodegaNombre = bodega.Nombre;
+        }
+        ajuste.Fecha = DateOnly.FromDateTime(DateTime.Today);
+        productos = await ProductoService.GetAllAsync();
+        marcas = await MarcaService.GetAllAsync();
+        modelos = await ModeloService.GetAllAsync();
+        if (ajuste.id_bodega > 0) origenes = await InventarioService.GetOrigenesDisponiblesAsync(ajuste.id_bodega);
+    }
+
+    private void OnFechaChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var d))
+            ajuste.Fecha = d;
+    }
+
+    private void AgregarItem()
+    {
+        var idx = items.Count;
+        items.Add(new DetalleAjuste { Cantidad = 1, TipoAjuste = TipoAjuste.Aumento });
+        serieInputs[idx] = string.Empty;
+    }
+
+    private void QuitarItem(int idx)
+    {
+        items.RemoveAt(idx);
+        // Reindexar diccionarios
+        var nuevoInputs = new Dictionary<int, string>();
+        var nuevoErrores = new Dictionary<int, string?>();
+        for (int i = 0; i < items.Count; i++)
+        {
+            var oldIdx = i < idx ? i : i + 1;
+            nuevoInputs[i] = serieInputs.TryGetValue(oldIdx, out var v) ? v : string.Empty;
+            nuevoErrores[i] = erroresSerie.TryGetValue(oldIdx, out var e) ? e : null;
+        }
+        serieInputs = nuevoInputs;
+        erroresSerie = nuevoErrores;
+    }
+
+    private string GetSerieInput(int idx) => serieInputs.TryGetValue(idx, out var v) ? v : string.Empty;
+    private void SetSerieInput(int idx, string value) => serieInputs[idx] = value;
+    private string? GetErrorSerie(int idx) => erroresSerie.TryGetValue(idx, out var e) ? e : null;
+
+    private bool ValidarSeries()
+    {
+        erroresSerie.Clear();
+        var ok = true;
+        for (int idx = 0; idx < items.Count; idx++)
+        {
+            var item = items[idx];
+            if (item.TipoAjuste != TipoAjuste.Aumento) continue;
+
+            var raw = GetSerieInput(idx);
+            var series = raw
+                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            if (series.Count == 0) continue;
+
+            if (item.Cantidad <= 0)
+            {
+                erroresSerie[idx] = "Ingresa la cantidad antes de detallar series.";
+                ok = false;
+                continue;
+            }
+
+            if (series.Count != item.Cantidad)
+            {
+                erroresSerie[idx] = $"Debes ingresar {item.Cantidad} series (una por unidad) o ninguna.";
+                ok = false;
+                continue;
+            }
+
+            var dup = series.GroupBy(s => s, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (dup != null)
+            {
+                erroresSerie[idx] = $"Serie duplicada: {dup.Key}";
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    private Dictionary<int, List<string>> ObtenerSeriesPorItem()
+    {
+        var result = new Dictionary<int, List<string>>();
+        for (int idx = 0; idx < items.Count; idx++)
+        {
+            var raw = GetSerieInput(idx);
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            var series = raw
+                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+            if (series.Count > 0)
+                result[idx] = series;
+        }
+        return result;
+    }
+
+    private async Task Guardar()
+    {
+        errorMsg = null;
+
+        if (items.Count == 0)
+        {
+            errorMsg = "Debe agregar al menos un ítem al ajuste.";
+            return;
+        }
+
+        var invalido = items.FirstOrDefault(d => d.id_producto == 0 || d.id_marca == 0 || d.Cantidad < 1);
+        if (invalido != null)
+        {
+            errorMsg = "Todos los ítems deben tener producto, marca y cantidad válidos.";
+            return;
+        }
+
+        if (!ValidarSeries())
+            return;
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        ajuste.IdUsuario = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "sistema";
+        ajuste.DetalleAjuste = items;
+
+        guardando = true;
+        try
+        {
+            await AjusteService.CreateAsync(ajuste, ObtenerSeriesPorItem());
+            Nav.NavigateTo("/ajustes");
+        }
+        catch (Exception ex)
+        {
+            errorMsg = ex.Message;
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Cancelar() => Nav.NavigateTo("/ajustes");
+}

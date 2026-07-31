@@ -1,0 +1,30 @@
+using System;
+using System.ComponentModel.DataAnnotations;
+
+namespace BodegaDESAM
+{
+    public partial class ProductoSerie
+    {
+        public int Id { get; set; }
+
+        public int id_producto { get; set; }
+
+        public int? id_detalle_entrada { get; set; }
+
+        public int? id_detalle_ajuste { get; set; }
+
+        public int? id_salida { get; set; }
+
+        [Required(ErrorMessage = "El N° de serie es obligatorio")]
+        [StringLength(100, ErrorMessage = "El N° de serie debe tener máximo 100 caracteres")]
+        public string Serie { get; set; } = string.Empty;
+
+        public virtual Producto Producto { get; set; } = null!;
+
+        public virtual DetalleEntrada DetalleEntrada { get; set; } = null!;
+
+        public virtual DetalleAjuste? DetalleAjuste { get; set; }
+
+        public virtual Salida? Salida { get; set; }
+    }
+}

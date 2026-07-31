@@ -1,0 +1,94 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    /// <inheritdoc />
+    public partial class MoveMarcaFromProductoToDetalleEntrada : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_producto_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto");
+
+            migrationBuilder.DropIndex(
+                name: "IX_producto_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto");
+
+            migrationBuilder.DropColumn(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto");
+
+            migrationBuilder.AddColumn<long>(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0L);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_detalle_entrada_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                column: "id_marca");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_detalle_entrada_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                column: "id_marca",
+                principalSchema: "BodegaDESAM_dev",
+                principalTable: "marca",
+                principalColumn: "id");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_detalle_entrada_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropIndex(
+                name: "IX_detalle_entrada_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropColumn(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.AddColumn<long>(
+                name: "id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0L);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_producto_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                column: "id_marca");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_producto_marca_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                column: "id_marca",
+                principalSchema: "BodegaDESAM_dev",
+                principalTable: "marca",
+                principalColumn: "id");
+        }
+    }
+}

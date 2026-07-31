@@ -1,0 +1,48 @@
+﻿using BodegaDESAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Collections.Generic;
+
+namespace BodegaDESAM
+{
+    public class ProductoEntityTypeConfiguration : IEntityTypeConfiguration<Producto>
+    {
+        public void Configure(EntityTypeBuilder<Producto> builder)
+        {
+            builder
+                .HasKey(x => x.Id);
+
+            builder
+                .HasOne(x => x.Marca)
+                .WithMany(x => x.Productos)
+                .HasForeignKey(x => x.id_marca)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .Property(x => x.Id)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("id")
+                .HasPrecision(32, 0)
+                .HasDefaultValueSql("nextval('\"BodegaDESAM_dev\".producto_id_seq'::regclass)");
+
+            builder
+                .Property(x => x.Nombre)
+                .HasColumnName("nombre")
+                .HasColumnType("character varying");
+
+            builder
+                .Property(x => x.NSerie)
+                .HasColumnName("n_serie")
+                .HasColumnType("character varying");
+
+            builder
+                .Property(x => x.Modelo)
+                .HasColumnName("modelo")
+                .HasColumnType("character varying");
+
+            builder
+                .ToTable("producto", "BodegaDESAM_dev");
+        }
+    }
+}

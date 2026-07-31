@@ -1,0 +1,256 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    /// <inheritdoc />
+    public partial class Initial_App : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.EnsureSchema(
+                name: "BodegaDESAM_dev");
+
+            migrationBuilder.CreateTable(
+                name: "establecimiento",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".establecimiento_id_seq'::regclass)"),
+                    nombre = table.Column<string>(type: "character varying", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_establecimiento", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "marca",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".marca_id_seq'::regclass)"),
+                    nombre = table.Column<string>(type: "character varying", maxLength: 50, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_marca", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "proveedor",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".proveedor_id_seq'::regclass)"),
+                    nombre = table.Column<string>(type: "character varying", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_proveedor", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "salida",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".salida_id_seq'::regclass)"),
+                    id_establecimiento = table.Column<int>(type: "integer", nullable: false),
+                    observacion = table.Column<string>(type: "character varying", nullable: false),
+                    solicitante = table.Column<string>(type: "character varying", nullable: false),
+                    fecha = table.Column<DateOnly>(type: "date", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_salida", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_salida_establecimiento_id_establecimiento",
+                        column: x => x.id_establecimiento,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "establecimiento",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "producto",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".producto_id_seq'::regclass)"),
+                    id_marca = table.Column<long>(type: "bigint", nullable: false),
+                    nombre = table.Column<string>(type: "character varying", maxLength: 50, nullable: false),
+                    n_serie = table.Column<string>(type: "character varying", nullable: true),
+                    modelo = table.Column<string>(type: "character varying", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_producto", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_producto_marca_id_marca",
+                        column: x => x.id_marca,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "marca",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "entrada",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".factura_id_seq'::regclass)"),
+                    id_proveedor = table.Column<int>(type: "integer", nullable: false),
+                    fecha = table.Column<DateTime>(type: "date", nullable: false),
+                    n_documento = table.Column<string>(type: "character varying", nullable: false),
+                    observacion = table.Column<string>(type: "character varying", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_entrada", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_entrada_proveedor_id_proveedor",
+                        column: x => x.id_proveedor,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "proveedor",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "detalle_salida",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".detalle_salida_id_seq'::regclass)"),
+                    id_salida = table.Column<int>(type: "integer", nullable: false),
+                    id_producto = table.Column<int>(type: "integer", nullable: false),
+                    cantidad = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_detalle_salida", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_detalle_salida_producto_id_producto",
+                        column: x => x.id_producto,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "producto",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "FK_detalle_salida_salida_id_salida",
+                        column: x => x.id_salida,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "salida",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "detalle_entrada",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false, defaultValueSql: "nextval('\"BodegaDESAM_dev\".producto_factura_id_seq'::regclass)"),
+                    id_producto = table.Column<int>(type: "integer", nullable: false),
+                    id_entrada = table.Column<int>(type: "integer", nullable: false),
+                    cantidad = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false),
+                    fecha_vencimiento = table.Column<DateTime>(type: "date", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_detalle_entrada", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_detalle_entrada_entrada_id_entrada",
+                        column: x => x.id_entrada,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "entrada",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "FK_detalle_entrada_producto_id_producto",
+                        column: x => x.id_producto,
+                        principalSchema: "BodegaDESAM_dev",
+                        principalTable: "producto",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_detalle_entrada_id_entrada",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                column: "id_entrada");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_detalle_entrada_id_producto",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                column: "id_producto");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_detalle_salida_id_producto",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_salida",
+                column: "id_producto");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_detalle_salida_id_salida",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_salida",
+                column: "id_salida");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_entrada_id_proveedor",
+                schema: "BodegaDESAM_dev",
+                table: "entrada",
+                column: "id_proveedor");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_producto_id_marca",
+                schema: "BodegaDESAM_dev",
+                table: "producto",
+                column: "id_marca");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_salida_id_establecimiento",
+                schema: "BodegaDESAM_dev",
+                table: "salida",
+                column: "id_establecimiento");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "detalle_entrada",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "detalle_salida",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "entrada",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "producto",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "salida",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "proveedor",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "marca",
+                schema: "BodegaDESAM_dev");
+
+            migrationBuilder.DropTable(
+                name: "establecimiento",
+                schema: "BodegaDESAM_dev");
+        }
+    }
+}

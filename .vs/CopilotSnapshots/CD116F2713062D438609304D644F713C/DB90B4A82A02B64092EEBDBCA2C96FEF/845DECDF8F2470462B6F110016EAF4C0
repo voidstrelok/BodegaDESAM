@@ -1,0 +1,64 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public sealed record InventarioProductoDto(
+        int IdProducto,
+        string NombreProducto,
+        string? Marca,
+        long TotalEntradas,
+        long TotalSalidas,
+        long StockActual);
+
+    public class InventarioService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradasPorProducto = db.DetalleEntrada
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long)x.Cantidad)
+                });
+
+            var salidasPorProducto = db.DetalleSalida
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long)x.Cantidad)
+                });
+
+            var query =
+                from p in db.Producto.AsNoTracking()
+                    .Include(x => x.Marca)
+                join e in entradasPorProducto on p.Id equals e.IdProducto into eJoin
+                from e in eJoin.DefaultIfEmpty()
+                join s in salidasPorProducto on p.Id equals s.IdProducto into sJoin
+                from s in sJoin.DefaultIfEmpty()
+                orderby p.Nombre
+                select new InventarioProductoDto(
+                    p.Id,
+                    p.Nombre,
+                    p.Marca.Nombre,
+                    e == null ? 0 : e.Total,
+                    s == null ? 0 : s.Total,
+                    (e == null ? 0 : e.Total) - (s == null ? 0 : s.Total)
+                );
+
+            return await query.ToListAsync();
+        }
+    }
+}

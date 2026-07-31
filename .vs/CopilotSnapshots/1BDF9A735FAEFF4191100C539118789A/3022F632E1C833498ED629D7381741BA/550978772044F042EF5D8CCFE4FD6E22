@@ -1,0 +1,108 @@
+﻿using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace BodegaDESAM.Services
+{
+    public class SalidaPdfReportService
+    {
+        public byte[] CreatePdf(Salida salida)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            var doc = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(30);
+                    page.DefaultTextStyle(x => x.FontSize(10));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("Reporte de Salida").FontSize(16).SemiBold();
+                        col.Item().Text($"Salida Nº {salida.Id}").SemiBold();
+                        col.Item().Text($"Fecha: {salida.Fecha:dd/MM/yyyy}");
+                        col.Item().Text($"Establecimiento: {salida.EStablecimiento?.Nombre}");
+                        col.Item().Text($"Solicitante: {salida.Solicitante}");
+                    });
+
+                    page.Content().Column(col =>
+                    {
+                        col.Spacing(10);
+
+                        col.Item().Text("Detalle").FontSize(12).SemiBold();
+
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(6);
+                                columns.RelativeColumn(2);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyle).Text("Producto").SemiBold();
+                                header.Cell().Element(CellStyle).AlignRight().Text("Cantidad").SemiBold();
+
+                                static IContainer CellStyle(IContainer container) =>
+                                    container.DefaultTextStyle(x => x.FontSize(10))
+                                             .PaddingVertical(6)
+                                             .PaddingHorizontal(6)
+                                             .Background(Colors.Grey.Lighten3)
+                                             .Border(1)
+                                             .BorderColor(Colors.Grey.Lighten1);
+                            });
+
+                            foreach (var d in salida.DetalleSalida)
+                            {
+                                table.Cell().Element(CellBody).Text(d.Producto?.Nombre ?? string.Empty);
+                                table.Cell().Element(CellBody).AlignRight().Text(d.Cantidad.ToString());
+
+                                static IContainer CellBody(IContainer container) =>
+                                    container.PaddingVertical(5)
+                                             .PaddingHorizontal(6)
+                                             .BorderBottom(1)
+                                             .BorderColor(Colors.Grey.Lighten2);
+                            }
+                        });
+
+                        if (!string.IsNullOrWhiteSpace(salida.Observacion))
+                        {
+                            col.Item().Text("Observaciones").FontSize(12).SemiBold();
+                            col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Text(salida.Observacion);
+                        }
+
+                        col.Item().PaddingTop(20).Row(row =>
+                        {
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("Solicita").SemiBold();
+                                c.Item().PaddingTop(30).LineHorizontal(1);
+                                c.Item().Text("Firma y nombre").FontSize(9).FontColor(Colors.Grey.Darken1);
+                            });
+
+                            row.ConstantItem(30);
+
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("Entrega").SemiBold();
+                                c.Item().PaddingTop(30).LineHorizontal(1);
+                                c.Item().Text("Firma y nombre").FontSize(9).FontColor(Colors.Grey.Darken1);
+                            });
+                        });
+                    });
+
+                    page.Footer().AlignRight().Text(x =>
+                    {
+                        x.Span("Generado: ");
+                        x.Span(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
+                    }).FontSize(8).FontColor(Colors.Grey.Darken1);
+                });
+            });
+
+            return doc.GeneratePdf();
+        }
+    }
+}

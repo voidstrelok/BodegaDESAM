@@ -1,0 +1,42 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace BodegaDESAM
+{
+    public partial class Salida
+    {
+        public int Id { get; set; }
+
+        public string IdUsuario { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Debe seleccionar una bodega")]
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una bodega")]
+        public int id_bodega { get; set; }
+
+        [Required(ErrorMessage = "Debe seleccionar un establecimiento")]
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un establecimiento")]
+        public int id_establecimiento { get; set; }
+
+        public int? id_bodega { get; set; }
+
+        public virtual Bodega Bodega { get; set; } = null!;
+
+        public virtual Establecimiento EStablecimiento { get; set; } = null!;
+
+        public virtual Bodega? Bodega { get; set; }
+
+        [Required(ErrorMessage = "La observación es obligatoria")]
+        [StringLength(200, ErrorMessage = "La observación debe tener máximo 200 caracteres")]
+        public string Observacion { get; set; } = String.Empty;
+
+        [Required(ErrorMessage = "El solicitante es obligatorio")]
+        [StringLength(100, ErrorMessage = "El solicitante debe tener máximo 100 caracteres")]
+        public string Solicitante { get; set; } = String.Empty;
+
+        public DateOnly Fecha { get; set; }
+
+        public virtual ICollection<DetalleSalida> DetalleSalida { get; set; } = new HashSet<DetalleSalida>();
+    }
+}

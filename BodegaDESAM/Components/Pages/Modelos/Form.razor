@@ -1,0 +1,117 @@
+@page "/modelos/nuevo"
+@page "/modelos/editar/{Id:long}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+
+@inject ModeloService ModeloService
+@inject MarcaService MarcaService
+@inject NavigationManager Nav
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<EditForm Model="modelo" OnValidSubmit="Guardar" FormName="EditarModelo">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Marca *</label>
+                <InputSelect class="form-select" @bind-Value="modelo.id_marca">
+                    <option value="0">-- Seleccione marca --</option>
+                    @foreach (var marca in marcas)
+                    {
+                        <option value="@marca.Id">@marca.Nombre</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => modelo.id_marca)" />
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Nombre del Modelo *</label>
+                <InputText class="form-control" @bind-Value="modelo.Nombre" />
+                <ValidationMessage For="@(() => modelo.Nombre)" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@busy">
+            @if (busy)
+            {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                <span>Guardando...</span>
+            }
+            else
+            {
+                <span>Guardar</span>
+            }
+        </button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver" disabled="@busy">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public long? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    Modelo modelo { get; set; } = new();
+
+    List<Marca> marcas = new();
+    bool busy;
+    string? error;
+
+    string Titulo => Id == null ? "Nuevo Modelo" : "Editar Modelo";
+
+    protected override async Task OnInitializedAsync()
+    {
+        marcas = await MarcaService.GetAllAsync();
+
+        if (Id != null)
+        {
+            var existente = await ModeloService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                modelo = existente;
+            }
+            else
+            {
+                error = "El modelo no existe o fue eliminado.";
+            }
+        }
+    }
+
+    async Task Guardar()
+    {
+        error = null;
+        busy = true;
+
+        try
+        {
+            if (Id == null)
+                await ModeloService.CreateAsync(modelo);
+            else
+                await ModeloService.UpdateAsync(modelo);
+
+            Nav.NavigateTo("/modelos");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    void Volver() => Nav.NavigateTo("/modelos");
+}

@@ -1,0 +1,389 @@
+﻿@page "/admin/usuarios"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using Microsoft.AspNetCore.Identity
+@using BodegaDESAM.Models.Admin
+@using System.ComponentModel.DataAnnotations
+
+@inject UserManager<IdentityUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+
+<h3 class="page-title mb-3">Usuarios</h3>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+@if (!string.IsNullOrWhiteSpace(success))
+{
+    <div class="alert alert-success" role="alert">@success</div>
+}
+
+<div class="card-section p-3 mb-3">
+    <EditForm Model="create" OnValidSubmit="CreateUserAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label">Nombre</label>
+                <InputText class="form-control" @bind-Value="create.Nombre" />
+                <ValidationMessage For="() => create.Nombre" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Apellido</label>
+                <InputText class="form-control" @bind-Value="create.Apellido" />
+                <ValidationMessage For="() => create.Apellido" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="create.Email" placeholder="usuario@dominio.cl" />
+                <ValidationMessage For="() => create.Email" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Password</label>
+                <InputText class="form-control" type="password" @bind-Value="create.Password" placeholder="••••••••" />
+                <ValidationMessage For="() => create.Password" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Rol inicial</label>
+                <InputSelect class="form-select" @bind-Value="create.Role">
+                    @foreach (var r in allRoles)
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => create.Role" />
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary" type="submit" disabled="@busy">Crear usuario</button>
+        </div>
+    </EditForm>
+</div>
+
+@if (users is null)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    <div class="card-section p-2">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Email/Usuario</th>
+                    <th>Roles</th>
+                    <th style="width: 420px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in users)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</div>
+                            @if (!string.IsNullOrWhiteSpace(u.Nombre) || !string.IsNullOrWhiteSpace(u.Apellido))
+                            {
+                                <div class="text-muted small">@($"{u.Nombre} {u.Apellido}".Trim())</div>
+                            }
+                            <div class="text-muted small">@u.Id</div>
+                        </td>
+                        <td>
+                            @if (u.Roles.Count == 0)
+                            {
+                                <span class="text-muted">(sin roles)</span>
+                            }
+                            else
+                            {
+                                <span>@string.Join(", ", u.Roles)</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-2">
+                                <select class="form-select form-select-sm" style="max-width: 200px;" value="@GetSelectedRole(u.Id)" @onchange="e => SetSelectedRole(u.Id, e.Value?.ToString())">
+                                    @foreach (var r in allRoles)
+                                    {
+                                        <option value="@r">@r</option>
+                                    }
+                                </select>
+
+                                <button class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="() => AddRoleAsync(u.Id)" title="Agrega el rol seleccionado">Agregar rol</button>
+                                <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => RemoveRoleAsync(u.Id)" title="Quita el rol seleccionado">Quitar rol</button>
+
+                                <button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="() => ResetPasswordAsync(u.Id)" title="Resetea a una clave temporal">Reset password</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    List<UserWithRolesVm>? users;
+    List<string> allRoles = new();
+    Dictionary<string, string> roleSelection = new();
+
+    string? error;
+    string? success;
+    bool busy;
+
+    readonly CreateUserModel create = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        error = null;
+        success = null;
+
+        allRoles = RoleManager.Roles.Select(r => r.Name!).OrderBy(r => r).ToList();
+        if (allRoles.Count == 0)
+            allRoles = new() { BodegaDESAM.Auth.AppRoles.Admin, BodegaDESAM.Auth.AppRoles.Bodega, BodegaDESAM.Auth.AppRoles.Lectura };
+
+        if (string.IsNullOrWhiteSpace(create.Role))
+            create.Role = allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura;
+
+        var list = new List<UserWithRolesVm>();
+        foreach (var u in UserManager.Users.OrderBy(u => u.Email).ToList())
+        {
+            var roles = await UserManager.GetRolesAsync(u);
+            var claims = await UserManager.GetClaimsAsync(u);
+            var nombre = claims.FirstOrDefault(c => c.Type == "given_name")?.Value;
+            var apellido = claims.FirstOrDefault(c => c.Type == "family_name")?.Value;
+            list.Add(new UserWithRolesVm
+            {
+                Id = u.Id,
+                UserName = u.UserName,
+                Email = u.Email,
+                Nombre = nombre,
+                Apellido = apellido,
+                Roles = roles
+            });
+
+            roleSelection[u.Id] = roles.FirstOrDefault() ?? allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura;
+        }
+
+        users = list;
+    }
+
+    string GetSelectedRole(string userId)
+    {
+        if (roleSelection.TryGetValue(userId, out var role) && !string.IsNullOrWhiteSpace(role))
+            return role;
+
+        return allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura;
+    }
+
+    void SetSelectedRole(string userId, string? role)
+    {
+        roleSelection[userId] = string.IsNullOrWhiteSpace(role)
+            ? (allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura)
+            : role;
+    }
+
+    async Task CreateUserAsync()
+    {
+        error = null;
+        success = null;
+        busy = true;
+
+        try
+        {
+            var email = create.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                error = "Email requerido.";
+                return;
+            }
+
+            var existing = await UserManager.FindByEmailAsync(email);
+            if (existing is not null)
+            {
+                error = "Ya existe un usuario con ese email.";
+                return;
+            }
+
+            var user = new IdentityUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true
+            };
+
+            var created = await UserManager.CreateAsync(user, create.Password ?? string.Empty);
+            if (!created.Succeeded)
+            {
+                error = string.Join(" ", created.Errors.Select(e => e.Description));
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(create.Role))
+            {
+                await UserManager.AddToRoleAsync(user, create.Role);
+            }
+
+            var nombre = create.Nombre?.Trim();
+            var apellido = create.Apellido?.Trim();
+            if (!string.IsNullOrWhiteSpace(nombre))
+                await UserManager.AddClaimAsync(user, new System.Security.Claims.Claim("given_name", nombre));
+            if (!string.IsNullOrWhiteSpace(apellido))
+                await UserManager.AddClaimAsync(user, new System.Security.Claims.Claim("family_name", apellido));
+
+            success = "Usuario creado.";
+            create.Email = string.Empty;
+            create.Password = string.Empty;
+            create.Nombre = string.Empty;
+            create.Apellido = string.Empty;
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    async Task AddRoleAsync(string userId)
+    {
+        await UpdateRoleAsync(userId, add: true);
+    }
+
+    async Task RemoveRoleAsync(string userId)
+    {
+        await UpdateRoleAsync(userId, add: false);
+    }
+
+    async Task UpdateRoleAsync(string userId, bool add)
+    {
+        error = null;
+        success = null;
+        busy = true;
+
+        try
+        {
+            var user = await UserManager.FindByIdAsync(userId);
+            if (user is null)
+            {
+                error = "Usuario no encontrado.";
+                return;
+            }
+
+            if (!roleSelection.TryGetValue(userId, out var role) || string.IsNullOrWhiteSpace(role))
+            {
+                error = "Rol no seleccionado.";
+                return;
+            }
+
+            var currentRoles = await UserManager.GetRolesAsync(user);
+
+            if (add)
+            {
+                if (currentRoles.Contains(role))
+                {
+                    success = "El usuario ya tiene ese rol.";
+                    return;
+                }
+
+                var res = await UserManager.AddToRoleAsync(user, role);
+                if (!res.Succeeded)
+                {
+                    error = string.Join(" ", res.Errors.Select(e => e.Description));
+                    return;
+                }
+
+                success = "Rol agregado.";
+            }
+            else
+            {
+                if (!currentRoles.Contains(role))
+                {
+                    success = "El usuario no tiene ese rol.";
+                    return;
+                }
+
+                if (role == BodegaDESAM.Auth.AppRoles.Admin && currentRoles.Count(r => r == BodegaDESAM.Auth.AppRoles.Admin) == 1)
+                {
+                    var admins = new List<IdentityUser>();
+                    foreach (var u in UserManager.Users.ToList())
+                    {
+                        if (await UserManager.IsInRoleAsync(u, BodegaDESAM.Auth.AppRoles.Admin))
+                            admins.Add(u);
+                    }
+
+                    if (admins.Count <= 1 && await UserManager.IsInRoleAsync(user, BodegaDESAM.Auth.AppRoles.Admin))
+                    {
+                        error = "No se puede quitar el rol Admin al último administrador.";
+                        return;
+                    }
+                }
+
+                var res = await UserManager.RemoveFromRoleAsync(user, role);
+                if (!res.Succeeded)
+                {
+                    error = string.Join(" ", res.Errors.Select(e => e.Description));
+                    return;
+                }
+
+                success = "Rol quitado.";
+            }
+
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    async Task ResetPasswordAsync(string userId)
+    {
+        error = null;
+        success = null;
+        busy = true;
+
+        try
+        {
+            var user = await UserManager.FindByIdAsync(userId);
+            if (user is null)
+            {
+                error = "Usuario no encontrado.";
+                return;
+            }
+
+            var token = await UserManager.GeneratePasswordResetTokenAsync(user);
+            var res = await UserManager.ResetPasswordAsync(user, token, "Cambio123");
+            if (!res.Succeeded)
+            {
+                error = string.Join(" ", res.Errors.Select(e => e.Description));
+                return;
+            }
+
+            success = "Password reseteada a: Cambio123";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    sealed class CreateUserModel
+    {
+        [Required(ErrorMessage = "Email requerido.")]
+        [EmailAddress(ErrorMessage = "Email inválido.")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Password requerida.")]
+        [MinLength(6, ErrorMessage = "Password debe tener al menos 6 caracteres.")]
+        public string? Password { get; set; }
+
+        [Required(ErrorMessage = "Rol requerido.")]
+        public string? Role { get; set; }
+    }
+}

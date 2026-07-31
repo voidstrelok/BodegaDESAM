@@ -1,0 +1,175 @@
+﻿@page "/inventario"
+@rendermode InteractiveServer
+
+@using BodegaDESAM.Services
+@inject InventarioService InventarioService
+@inject MovimientoProductoService MovimientoProductoService
+
+<h3 class="page-title mb-3">Inventario actual</h3>
+
+<div class="page-toolbar">
+    <div class="d-flex gap-2 flex-wrap">
+        <div class="input-group input-group-sm" style="max-width: 420px;">
+            <span class="input-group-text">
+                <i class="bi bi-search"></i>
+            </span>
+            <input class="form-control" placeholder="Buscar producto o marca..." @bind="Filtro" @bind:event="oninput" />
+            @if (!string.IsNullOrWhiteSpace(Filtro))
+            {
+                <button class="btn btn-outline-secondary" type="button" @onclick="LimpiarFiltro">Limpiar</button>
+            }
+        </div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="soloConStock" @bind="SoloConStock" />
+            <label class="form-check-label" for="soloConStock">Solo con stock</label>
+        </div>
+    </div>
+
+    <div class="text-muted small">
+        @if (items != null)
+        {
+            <span>Productos: @Filtrados.Count</span>
+        }
+    </div>
+</div>
+
+@if (items == null)
+{
+    <p>Cargando...</p>
+}
+else if (items.Count == 0)
+{
+    <p>No hay productos.</p>
+}
+else
+{
+    <div class="card-section p-2">
+        <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Marca</th>
+                <th class="text-end">Entradas</th>
+                <th class="text-end">Salidas</th>
+                <th class="text-end">Stock</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Filtrados)
+            {
+                <tr>
+                    <td>@i.NombreProducto</td>
+                    <td>@i.Marca</td>
+                    <td class="text-end">@i.TotalEntradas</td>
+                    <td class="text-end">@i.TotalSalidas</td>
+                    <td class="text-end">@i.StockActual</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => VerMovimientos(i.IdProducto)">Movimientos</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        </table>
+    </div>
+
+    @if (MostrarModal && ProductoSeleccionado != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">Movimientos: @ProductoSeleccionado.NombreProducto</h5>
+                        <button class="btn-close" @onclick="CerrarModal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        @if (Movimientos == null)
+                        {
+                            <div class="text-muted">Cargando...</div>
+                        }
+                        else if (Movimientos.Count == 0)
+                        {
+                            <div class="text-muted">Sin movimientos.</div>
+                        }
+                        else
+                        {
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>N°</th>
+                                        <th>Fecha</th>
+                                        <th>Referencia</th>
+                                        <th class="text-end">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var m in Movimientos)
+                                    {
+                                        <tr>
+                                            <td>@m.Tipo</td>
+                                            <td>@m.IdDocumento</td>
+                                            <td>@m.Fecha.ToString("dd/MM/yyyy")</td>
+                                            <td>@m.Referencia</td>
+                                            <td class="text-end">@m.Cantidad</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CerrarModal">Cerrar</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+}
+
+@code {
+    private List<InventarioProductoDto>? items;
+
+    private string? Filtro;
+    private bool SoloConStock;
+
+    private bool MostrarModal;
+    private InventarioProductoDto? ProductoSeleccionado;
+    private List<MovimientoProductoDto>? Movimientos;
+
+    private List<InventarioProductoDto> Filtrados => (items ?? new())
+        .Where(x =>
+            (string.IsNullOrWhiteSpace(Filtro)
+                || x.NombreProducto.Contains(Filtro, StringComparison.OrdinalIgnoreCase)
+                || (x.Marca?.Contains(Filtro, StringComparison.OrdinalIgnoreCase) ?? false))
+            && (!SoloConStock || x.StockActual > 0))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await InventarioService.GetInventarioActualAsync();
+    }
+
+    private void LimpiarFiltro() => Filtro = string.Empty;
+
+    private async Task VerMovimientos(int idProducto)
+    {
+        ProductoSeleccionado = items?.FirstOrDefault(x => x.IdProducto == idProducto);
+        MostrarModal = true;
+        Movimientos = null;
+        Movimientos = await MovimientoProductoService.GetMovimientosAsync(idProducto);
+    }
+
+    private void CerrarModal()
+    {
+        MostrarModal = false;
+        ProductoSeleccionado = null;
+        Movimientos = null;
+    }
+}

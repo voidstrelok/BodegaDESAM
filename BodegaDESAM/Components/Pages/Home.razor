@@ -1,0 +1,19 @@
+﻿@page "/"
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+
+        if (state.User?.Identity?.IsAuthenticated is true)
+            Nav.NavigateTo("/dashboard", replace: true);
+        else
+            Nav.NavigateTo("/login", replace: true);
+    }
+}
+
+<PageTitle>Login</PageTitle>
+
+<div class="text-muted">Redirigiendo al login...</div>

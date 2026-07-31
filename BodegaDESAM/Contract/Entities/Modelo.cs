@@ -1,0 +1,26 @@
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace BodegaDESAM
+{
+    /// <summary>
+    /// Representa un modelo específico de una marca (ej: "Pavilion 15" de HP)
+    /// Un modelo siempre pertenece a una marca única
+    /// </summary>
+    public partial class Modelo
+    {
+        public long Id { get; set; }
+
+        [Required(ErrorMessage = "Debe seleccionar una marca")]
+        [Range(1, long.MaxValue, ErrorMessage = "Debe seleccionar una marca")]
+        public long id_marca { get; set; }
+
+        [Required(ErrorMessage = "El nombre es obligatorio")]
+        [StringLength(100, ErrorMessage = "El nombre debe tener máximo 100 caracteres")]
+        public string Nombre { get; set; } = string.Empty;
+
+        public virtual Marca Marca { get; set; } = null!;
+
+        public virtual ICollection<DetalleEntrada> DetalleEntradas { get; set; } = new HashSet<DetalleEntrada>();
+    }
+}

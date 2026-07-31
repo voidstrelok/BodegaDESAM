@@ -1,0 +1,18 @@
+@page "/logout"
+@rendermode InteractiveServer
+@layout BodegaDESAM.Components.Layout.AuthLayout
+
+@inject NavigationManager Nav
+@inject Microsoft.AspNetCore.Identity.SignInManager<Microsoft.AspNetCore.Identity.IdentityUser> SignInManager
+
+<PageTitle>Logout</PageTitle>
+
+<div class="text-muted">Cerrando sesión...</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Nav.NavigateTo("/auth/logout", forceLoad: true);
+        await Task.CompletedTask;
+    }
+}

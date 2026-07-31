@@ -1,0 +1,466 @@
+﻿@page "/salidas/nuevo"
+@page "/salidas/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+
+@inject SalidaService SalidaService
+@inject EstablecimientoService EstablecimientoService
+@inject BodegaService BodegaService
+@inject InventarioService InventarioService
+@inject ProductoSerieService ProductoSerieService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+<EditForm Model="salida" OnSubmit="HandleSubmit" FormName="EditarSalida">
+    @if (!string.IsNullOrWhiteSpace(ErrorGuardar))
+    {
+        <div class="alert alert-danger py-2" role="alert">
+            @ErrorGuardar
+        </div>
+    }
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label">Fecha</label>
+                <InputDate class="form-control" @bind-Value="salida.Fecha" />
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">Bodega</label>
+                <InputSelect class="form-select" @bind-Value="salida.id_bodega" @bind-Value:after="OnBodegaChangedAsync">
+                    <option value="0">-- Seleccionar Bodega --</option>
+                    @foreach (var bodega in bodegas)
+                    {
+                        <option value="@bodega.Id">@bodega.Nombre @(bodega.EsPrincipal ? "(Principal)" : "")</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="col-12 col-md-5">
+                <label class="form-label">Establecimiento</label>
+                <InputSelect class="form-select" @bind-Value="salida.id_establecimiento">
+                    <option value="0">-- Seleccionar Establecimiento --</option>
+                    @foreach (var e in establecimientos)
+                    {
+                        <option value="@e.Id">@e.Nombre</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">Solicitante</label>
+                <InputText class="form-control" @bind-Value="salida.Solicitante" />
+            </div>
+
+            <div class="col-12 col-md-8">
+                <label class="form-label">Observaciones</label>
+                <InputText class="form-control" @bind-Value="salida.Observacion" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h6 class="m-0">Detalle</h6>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AgregarProducto">Agregar Producto</button>
+    </div>
+
+    <div class="card-section p-2 mb-3">
+        <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th style="min-width: 350px;">Producto (SKU)</th>
+                <th>Cantidad</th>
+                <th class="text-end">Stock</th>
+                <th>Series</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in salida.DetalleSalida)
+            {
+                <tr>
+                    <td>
+                        <select class="form-select" value="@GetSkuKeyForDetalle(d)" @onchange="@(async (ChangeEventArgs e) => await OnSkuChangedAsync(d, e.Value?.ToString() ?? string.Empty))">
+                            <option value="">-- Seleccionar Producto --</option>
+                            @foreach (var sku in skusDisponibles)
+                            {
+                                <option value="@sku.SkuKey">@sku.DisplayText</option>
+                            }
+                        </select>
+                        @if (d.id_producto == 0 || d.id_marca == 0)
+                        {
+                            <small class="text-danger">Debe seleccionar un producto</small>
+                        }
+                    </td>
+                    <td>
+                        <InputNumber class="form-control" @bind-Value="d.Cantidad" />
+                    </td>
+                    <td class="text-end">
+                        @{
+                            var stockInfo = GetStockParaDetalle(d);
+                        }
+                        @if (stockInfo.MostrarStock)
+                        {
+                            <span class="@(d.Cantidad > stockInfo.Stock ? "text-danger fw-semibold" : "")">@stockInfo.Stock</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">-</span>
+                        }
+                    </td>
+                    <td style="min-width: 260px;">
+                        @if (d.id_producto <= 0)
+                        {
+                            <span class="text-muted small">Seleccione un producto</span>
+                        }
+                        else if (!SeriesDisponiblesPorDetalle.TryGetValue(d, out var disponibles))
+                        {
+                            <span class="text-muted small">(cargando...)</span>
+                        }
+                        else if (disponibles.Count == 0)
+                        {
+                            <span class="text-muted small">(sin series disponibles)</span>
+                        }
+                        else
+                        {
+                            <select class="form-select form-select-sm" multiple size="3" @key="d" @ref="SeriesSelectRefs[d]"
+                                    @onchange="() => OnSeriesChangedAsync(d)">
+                                @foreach (var s in disponibles)
+                                {
+                                    <option value="@s" selected="@(SeriesSeleccionadasPorDetalle.TryGetValue(d, out var selectedSet) && selectedSet.Contains(s, StringComparer.OrdinalIgnoreCase))">@s</option>
+                                }
+                            </select>
+                            <div class="text-muted small mt-1">
+                                Seleccionadas: @((SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) ? sel.Count : 0)) / @d.Cantidad
+                            </div>
+                        }
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => EliminarProducto(d)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Salida salida { get; set; } = new() { Fecha = DateOnly.FromDateTime(DateTime.Now) };
+
+    private List<Bodega> bodegas { get; set; } = new();
+    private List<Establecimiento> establecimientos { get; set; } = new();
+    private List<ProductoSkuDisponible> skusDisponibles { get; set; } = new();
+
+    private string Titulo { get; set; } = "Nueva Salida";
+
+    private string? ErrorGuardar;
+
+    private Dictionary<DetalleSalida, List<string>> SeriesDisponiblesPorDetalle { get; set; } = new();
+    private Dictionary<DetalleSalida, HashSet<string>> SeriesSeleccionadasPorDetalle { get; set; } = new();
+    private Dictionary<DetalleSalida, ElementReference> SeriesSelectRefs { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        bodegas = await BodegaService.GetAllAsync();
+        establecimientos = await EstablecimientoService.GetAllAsync();
+
+        if (Id != null)
+        {
+            var existente = await SalidaService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                salida = existente;
+                Titulo = $"Editar Salida > {salida.Id}";
+            }
+        }
+        else
+        {
+            // Asignar bodega principal por defecto
+            var bodegaPrincipal = bodegas.FirstOrDefault(b => b.EsPrincipal);
+            if (bodegaPrincipal != null)
+            {
+                salida.id_bodega = bodegaPrincipal.Id;
+            }
+        }
+
+        await CargarSkusDisponiblesAsync();
+        await InicializarSeriesAsync();
+    }
+
+    private async Task CargarSkusDisponiblesAsync()
+    {
+        if (salida.id_bodega > 0)
+        {
+            skusDisponibles = await InventarioService.GetSkusDisponiblesAsync(salida.id_bodega);
+        }
+        else
+        {
+            skusDisponibles = await InventarioService.GetSkusDisponiblesAsync();
+        }
+    }
+
+    private async Task OnBodegaChangedAsync()
+    {
+        ErrorGuardar = null;
+        await CargarSkusDisponiblesAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task InicializarSeriesAsync()
+    {
+        SeriesDisponiblesPorDetalle.Clear();
+        SeriesSeleccionadasPorDetalle.Clear();
+        SeriesSelectRefs.Clear();
+
+        foreach (var d in salida.DetalleSalida)
+        {
+            SeriesSelectRefs[d] = default;
+            if (d.id_producto > 0)
+                await CargarSeriesDisponiblesAsync(d);
+        }
+
+        if (Id != null)
+        {
+            foreach (var d in salida.DetalleSalida)
+            {
+                if (d.id_producto <= 0)
+                    continue;
+
+                var series = (await ProductoSerieService.GetSeriesPorSalidaAsync(Id.Value))
+                    .Where(x => x.id_producto == d.id_producto)
+                    .Select(x => x.Serie)
+                    .ToList();
+
+                if (series.Count > 0)
+                    SeriesSeleccionadasPorDetalle[d] = new HashSet<string>(series, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    private async Task CargarSeriesDisponiblesAsync(DetalleSalida d)
+    {
+        if (d.id_producto <= 0 || d.id_marca <= 0)
+            return;
+
+        // Filtrar series por SKU completo (Producto + Marca + Modelo)
+        var disponibles = await ProductoSerieService.GetDisponiblesPorSkuAsync(d.id_producto, d.id_marca, d.id_modelo);
+
+        if (Id != null && SeriesSeleccionadasPorDetalle.TryGetValue(d, out var selExistentes) && selExistentes.Count > 0)
+        {
+            disponibles = disponibles
+                .Concat(selExistentes)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        SeriesDisponiblesPorDetalle[d] = disponibles;
+    }
+
+    private string GetSkuKeyForDetalle(DetalleSalida d)
+    {
+        if (d.id_producto <= 0 || d.id_marca <= 0)
+            return string.Empty;
+
+        return $"{d.id_producto}_{d.id_marca}_{d.id_modelo ?? 0}";
+    }
+
+    private (bool MostrarStock, long Stock) GetStockParaDetalle(DetalleSalida d)
+    {
+        try
+        {
+            if (d.id_producto <= 0 || d.id_marca <= 0)
+                return (false, 0);
+
+            var skuKey = GetSkuKeyForDetalle(d);
+            if (string.IsNullOrEmpty(skuKey))
+                return (false, 0);
+
+            var sku = skusDisponibles.FirstOrDefault(s => s.SkuKey == skuKey);
+            if (sku == null)
+                return (false, 0);
+
+            return (true, sku.StockDisponible);
+        }
+        catch
+        {
+            return (false, 0);
+        }
+    }
+
+    private async Task OnSkuChangedAsync(DetalleSalida d, string skuKey)
+    {
+        ErrorGuardar = null;
+
+        if (string.IsNullOrWhiteSpace(skuKey))
+        {
+            d.id_producto = 0;
+            d.id_marca = 0;
+            d.id_modelo = null;
+        }
+        else
+        {
+            var sku = skusDisponibles.FirstOrDefault(s => s.SkuKey == skuKey);
+            if (sku != null)
+            {
+                d.id_producto = sku.IdProducto;
+                d.id_marca = sku.IdMarca;
+                d.id_modelo = sku.IdModelo;
+            }
+        }
+
+        SeriesDisponiblesPorDetalle.Remove(d);
+        SeriesSeleccionadasPorDetalle.Remove(d);
+
+        if (d.id_producto > 0)
+            await CargarSeriesDisponiblesAsync(d);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task OnSeriesChangedAsync(DetalleSalida d)
+    {
+        ErrorGuardar = null;
+
+        if (!SeriesSelectRefs.TryGetValue(d, out var el))
+            return;
+
+        var selected = await JS.InvokeAsync<string[]>("bodega.getSelectedValues", el);
+        SeriesSeleccionadasPorDetalle[d] = new HashSet<string>(selected ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void HandleSubmit()
+    {
+        // Wrapper síncrono para poder usar OnSubmit
+        _ = Guardar();
+    }
+
+    private async Task Guardar()
+    {
+        ErrorGuardar = null;
+
+        // Validar campos principales
+        if (salida.id_bodega <= 0)
+        {
+            ErrorGuardar = "Debe seleccionar una bodega.";
+            return;
+        }
+
+        if (salida.id_establecimiento <= 0)
+        {
+            ErrorGuardar = "Debe seleccionar un establecimiento.";
+            return;
+        }
+
+        if (salida.DetalleSalida.Count == 0)
+        {
+            ErrorGuardar = "Debe agregar al menos un producto al detalle.";
+            return;
+        }
+
+        foreach (var d in salida.DetalleSalida)
+        {
+            if (d.id_producto <= 0 || d.id_marca <= 0)
+            {
+                ErrorGuardar = "Debe seleccionar un producto (SKU completo) en todas las filas del detalle.";
+                return;
+            }
+
+            if (d.Cantidad <= 0)
+            {
+                ErrorGuardar = "La cantidad debe ser mayor a 0 en todas las filas del detalle.";
+                return;
+            }
+
+            var skuKey = GetSkuKeyForDetalle(d);
+            var sku = skusDisponibles.FirstOrDefault(s => s.SkuKey == skuKey);
+            if (sku != null && d.Cantidad > sku.StockDisponible)
+            {
+                ErrorGuardar = $"Stock insuficiente para {sku.DisplayText.Split('(')[0].Trim()}. Disponible: {sku.StockDisponible}. Solicitado: {d.Cantidad}.";
+                return;
+            }
+
+            var tieneDisponibles = SeriesDisponiblesPorDetalle.TryGetValue(d, out var disponibles) && disponibles.Count > 0;
+            if (tieneDisponibles)
+            {
+                var seleccionadas = SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) ? sel.Count : 0;
+                if (seleccionadas != d.Cantidad)
+                {
+                    ErrorGuardar = $"El producto con ID {d.id_producto} requiere {d.Cantidad} serie(s) seleccionada(s).";
+                    return;
+                }
+            }
+        }
+
+        try
+        {
+            if (Id == null)
+            {
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await SalidaService.CreateAsync(salida, userId ?? string.Empty);
+
+                foreach (var d in salida.DetalleSalida)
+                {
+                    if (SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) && sel.Count > 0)
+                        await ProductoSerieService.AsociarASalidaAsync(salida.Id, d.id_producto, sel);
+                }
+            }
+            else
+            {
+                await SalidaService.UpdateAsync(salida);
+            }
+
+            Nav.NavigateTo("/salidas");
+        }
+        catch (Exception ex)
+        {
+            ErrorGuardar = ex.Message;
+        }
+    }
+
+    private void AgregarProducto()
+    {
+        ErrorGuardar = null;
+        var d = new DetalleSalida
+        {
+            id_producto = 0,
+            id_marca = 0,
+            id_modelo = null,
+            Cantidad = 1
+        };
+        salida.DetalleSalida.Add(d);
+        SeriesSelectRefs[d] = default;
+    }
+
+    private void EliminarProducto(DetalleSalida d)
+    {
+        ErrorGuardar = null;
+        salida.DetalleSalida.Remove(d);
+        SeriesDisponiblesPorDetalle.Remove(d);
+        SeriesSeleccionadasPorDetalle.Remove(d);
+        SeriesSelectRefs.Remove(d);
+    }
+
+    private void Volver() => Nav.NavigateTo("/salidas");
+}

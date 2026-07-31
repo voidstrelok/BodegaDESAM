@@ -1,0 +1,53 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class InventarioProductoDto()
+    {
+        int IdProducto { get; set; }
+        string NombreProducto { get; set; }
+        string Marca { get; set; }
+        long TotalEntradas { get; set; }
+        long TotalSalidas { get; set; }
+        long StockActual { get; set; }
+}
+
+    public class InventarioService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+
+        public InventarioService(IDbContextFactory<PostgresDataContext> factory)
+        {
+            _factory = factory;
+        }
+
+        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync()
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradasPorProducto = db.DetalleEntrada
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long)x.Cantidad)
+                }).ToList();
+
+            var salidasPorProducto = db.DetalleSalida
+                .AsNoTracking()
+                .GroupBy(d => d.id_producto)
+                .Select(g => new
+                {
+                    IdProducto = g.Key,
+                    Total = g.Sum(x => (long)x.Cantidad)
+                }).ToList();
+
+            var Productos = db.Producto.Include(p => p.Marca);
+            
+
+            
+            return await query.ToListAsync();
+        }
+    }
+}

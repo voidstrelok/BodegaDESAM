@@ -1,0 +1,127 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    public partial class MoveModeloToModeloEntity : Migration
+    {
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", precision: 32, nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    nombre = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_modelo", x => x.id);
+                });
+
+            // Índice único (case-sensitive). El case-insensitive lo agregamos con SQL abajo.
+            migrationBuilder.CreateIndex(
+                name: "IX_modelo_nombre",
+                schema: "BodegaDESAM_dev",
+                table: "modelo",
+                column: "nombre",
+                unique: true);
+
+            migrationBuilder.AddColumn<long>(
+                name: "id_modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                type: "bigint",
+                nullable: true);
+
+            // Migración de datos desde detalle_entrada.modelo (columna de texto)
+            migrationBuilder.Sql("""
+                INSERT INTO "BodegaDESAM_dev"."modelo" ("nombre")
+                SELECT DISTINCT trim("modelo") AS "nombre"
+                FROM "BodegaDESAM_dev"."detalle_entrada"
+                WHERE "modelo" IS NOT NULL AND length(trim("modelo")) > 0
+                ON CONFLICT DO NOTHING;
+
+                UPDATE "BodegaDESAM_dev"."detalle_entrada" d
+                SET "id_modelo" = m."id"
+                FROM "BodegaDESAM_dev"."modelo" m
+                WHERE d."modelo" IS NOT NULL
+                  AND length(trim(d."modelo")) > 0
+                  AND lower(trim(d."modelo")) = lower(m."nombre");
+
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = 'BodegaDESAM_dev'
+                          AND table_name = 'detalle_entrada'
+                          AND column_name = 'modelo'
+                    ) THEN
+                        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada" DROP COLUMN "modelo";
+                    END IF;
+                END $$;
+                """);
+
+            // Índice único case-insensitive (evita duplicados por casing)
+            migrationBuilder.Sql("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_indexes
+                        WHERE schemaname = 'BodegaDESAM_dev'
+                          AND indexname = 'ux_modelo_nombre'
+                    ) THEN
+                        CREATE UNIQUE INDEX "ux_modelo_nombre" ON "BodegaDESAM_dev"."modelo" (lower("nombre"));
+                    END IF;
+                END $$;
+                """);
+
+            migrationBuilder.AddForeignKey(
+                name: "fk_detalle_entrada_modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                column: "id_modelo",
+                principalSchema: "BodegaDESAM_dev",
+                principalTable: "modelo",
+                principalColumn: "id",
+                onDelete: ReferentialAction.NoAction);
+        }
+
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada",
+                type: "character varying(100)",
+                maxLength: 100,
+                nullable: true);
+
+            migrationBuilder.Sql("""
+                UPDATE "BodegaDESAM_dev"."detalle_entrada" d
+                SET "modelo" = m."nombre"
+                FROM "BodegaDESAM_dev"."modelo" m
+                WHERE d."id_modelo" = m."id";
+                """);
+
+            migrationBuilder.DropForeignKey(
+                name: "fk_detalle_entrada_modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropColumn(
+                name: "id_modelo",
+                schema: "BodegaDESAM_dev",
+                table: "detalle_entrada");
+
+            migrationBuilder.DropTable(
+                name: "modelo",
+                schema: "BodegaDESAM_dev");
+        }
+    }
+}

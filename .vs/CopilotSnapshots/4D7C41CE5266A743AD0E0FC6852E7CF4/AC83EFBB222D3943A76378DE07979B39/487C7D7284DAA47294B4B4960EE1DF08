@@ -1,0 +1,323 @@
+﻿@page "/entradas/nuevo"
+@page "/entradas/editar/{Id:long}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+
+@using BodegaDESAM.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject EntradaService EntradaService
+@inject ProveedorService ProveedorService
+@inject ProductoService ProductoService
+@inject MarcaService MarcaService
+@inject ProductoSerieService ProductoSerieService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+<EditForm Model="entrada" OnValidSubmit="Guardar" FormName="EditarEntrada">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    @if (!string.IsNullOrWhiteSpace(ErrorGuardar))
+    {
+        <div class="alert alert-danger py-2" role="alert">@ErrorGuardar</div>
+    }
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label">Fecha</label>
+                <InputDate class="form-control" @bind-Value="entrada.Fecha" />
+                <ValidationMessage For="@(() => entrada.Fecha)" />
+            </div>
+
+            <div class="col-12 col-md-5">
+                <label class="form-label">Proveedor</label>
+                <InputSelect class="form-select" @bind-Value="entrada.id_proveedor">
+                    <option value="0">-- Seleccionar Proveedor --</option>
+                    @foreach (var proveedor in proveedores)
+                    {
+                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => entrada.id_proveedor)" />
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label">N° Documento</label>
+                <InputText class="form-control" @bind-Value="entrada.NDocumento" />
+                <ValidationMessage For="@(() => entrada.NDocumento)" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Observaciones</label>
+                <InputText class="form-control" @bind-Value="entrada.Observacion" />
+                <ValidationMessage For="@(() => entrada.Observacion)" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h6 class="m-0">Detalle</h6>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AgregarProducto">Agregar Producto</button>
+    </div>
+
+    <div class="card-section p-2 mb-3">
+        <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Cantidad</th>
+                <th>Fecha Vencimiento</th>
+                <th style="min-width: 260px">N° Serie (opcional)</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var detalle in entrada.DetalleEntrada)
+            {
+                <tr>
+                    <td>
+                        <InputSelect class="form-select" @bind-Value="detalle.id_producto">
+                            <option value="0">-- Seleccionar Producto --</option>
+                            @foreach(var p in productos){
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => detalle.id_producto)" />
+                    </td>
+                    <td>
+                        <InputSelect class="form-select" @bind-Value="detalle.id_marca">
+                            <option value="0">-- Seleccionar Marca --</option>
+                            @foreach(var m in marcas){
+                                <option value="@m.Id">@m.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => detalle.id_marca)" />
+                    </td>
+                    <td>
+                        <InputText class="form-control" @bind-Value="detalle.Modelo" />
+                        <ValidationMessage For="@(() => detalle.Modelo)" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control" @bind-Value="detalle.Cantidad" />
+                        <ValidationMessage For="@(() => detalle.Cantidad)" />
+                    </td>
+                    <td>
+                        <InputDate class="form-control" @bind-Value="detalle.FechaVencimiento" />
+                        <ValidationMessage For="@(() => detalle.FechaVencimiento)" />
+                    </td>
+                    <td>
+                        <textarea class="form-control form-control-sm" rows="3" placeholder="1 serie por línea (dejar vacío si no aplica)"
+                                  @bind="SerieInput[detalle]" @bind:event="oninput"></textarea>
+                        @if (ErroresSerie.TryGetValue(detalle, out var err) && !string.IsNullOrWhiteSpace(err))
+                        {
+                            <div class="text-danger small mt-1">@err</div>
+                        }
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => EliminarProducto(detalle)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@Busy">
+            @if (Busy)
+            {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                <span>Guardando...</span>
+            }
+            else
+            {
+                <span>Guardar</span>
+            }
+        </button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver" disabled="@Busy">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] 
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    Entrada entrada { get; set; } = new() { Fecha = DateOnly.FromDateTime(DateTime.Now) };
+    [SupplyParameterFromForm]
+    List<Proveedor> proveedores { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Producto> productos { get; set; } = new();
+    [SupplyParameterFromForm]
+    List<Marca> marcas { get; set; } = new();
+    string Titulo { get; set; }
+
+    bool Busy;
+    string? ErrorGuardar;
+
+    Dictionary<DetalleEntrada, string> SerieInput { get; set; } = new();
+    Dictionary<DetalleEntrada, string?> ErroresSerie { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        proveedores = await ProveedorService.GetAllAsync();
+        productos = await ProductoService.GetAllAsync();
+        marcas = await MarcaService.GetAllAsync();
+        if (Id != null)
+        {
+            var existente = await EntradaService.GetByIdAsync(Id.Value);
+            if (existente != null)
+            {
+                entrada = existente;
+                Titulo += $"Editar Entrada > {Id.ToString()}-{entrada.Proveedor.Nombre}-{entrada.NDocumento}";
+            }
+            else
+            {
+                ErrorGuardar = "La entrada no existe o fue eliminada.";
+            }
+        }
+        else
+        {
+            Titulo = "Nueva Entrada";
+        }
+
+        foreach (var d in entrada.DetalleEntrada)
+            SerieInput.TryAdd(d, string.Empty);
+    }
+
+    private async Task Guardar()
+    {
+        ErrorGuardar = null;
+
+        if (entrada.DetalleEntrada.Count == 0)
+        {
+            ErrorGuardar = "Debe agregar al menos un producto al detalle.";
+            return;
+        }
+
+        if (!ValidarSeries())
+            return;
+
+        Busy = true;
+        try
+        {
+            if (Id == null)
+            {
+                var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+                var userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await EntradaService.CreateAsync(entrada, userId ?? string.Empty);
+
+                await GuardarSeriesAsync();
+            }
+            else
+            {
+                var existente = await EntradaService.GetByIdAsync(Id.Value);
+                if (existente != null)
+                {
+                    await EntradaService.UpdateAsync(entrada);
+                }
+                else
+                {
+                    ErrorGuardar = "La entrada no existe o fue eliminada.";
+                }
+            }
+
+            Nav.NavigateTo("/entradas");
+        }
+        catch (Exception ex)
+        {
+            ErrorGuardar = ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+    void AgregarProducto()
+    {
+        var d = new DetalleEntrada();
+        entrada.DetalleEntrada.Add(d);
+        SerieInput[d] = string.Empty;
+    }
+
+    void EliminarProducto(DetalleEntrada detalle)
+    {
+        entrada.DetalleEntrada.Remove(detalle);
+        SerieInput.Remove(detalle);
+        ErroresSerie.Remove(detalle);
+    }
+
+    void Volver() => Nav.NavigateTo("/entradas");
+
+    bool ValidarSeries()
+    {
+        ErroresSerie.Clear();
+        var ok = true;
+
+        foreach (var d in entrada.DetalleEntrada)
+        {
+            SerieInput.TryGetValue(d, out var raw);
+            raw ??= string.Empty;
+
+            var series = raw
+                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            if (series.Count == 0)
+                continue; // opcional: no se detallan series
+
+            if (d.Cantidad <= 0)
+            {
+                ErroresSerie[d] = "Ingresa la cantidad antes de detallar series.";
+                ok = false;
+                continue;
+            }
+
+            if (series.Count != d.Cantidad)
+            {
+                ErroresSerie[d] = $"Debes ingresar {d.Cantidad} series (una por unidad) o ninguna.";
+                ok = false;
+                continue;
+            }
+
+            var dup = series
+                .GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(g => g.Count() > 1);
+
+            if (dup != null)
+            {
+                ErroresSerie[d] = $"Serie duplicada en el detalle: {dup.Key}";
+                ok = false;
+            }
+        }
+
+        return ok;
+    }
+
+    async Task GuardarSeriesAsync()
+    {
+        foreach (var d in entrada.DetalleEntrada)
+        {
+            SerieInput.TryGetValue(d, out var raw);
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            var series = raw
+                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s));
+
+            await ProductoSerieService.CrearSeriesAsync(d.id_producto, d.Id, series);
+        }
+    }
+
+}

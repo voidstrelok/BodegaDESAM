@@ -1,0 +1,60 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{3BDB5ED8-F271-0984-245D-3BC4AA965C71}|BodegaDESAM\\BodegaDESAM.csproj|c:\\users\\usuario\\source\\repos\\bodegadesam\\bodegadesam\\bodegadesam.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{3BDB5ED8-F271-0984-245D-3BC4AA965C71}|BodegaDESAM\\BodegaDESAM.csproj|solutionrelative:bodegadesam\\bodegadesam.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d98f7c4d-b652-422c-bcdf-3d0e2b2da2c1}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "BodegaDESAM",
+              "DocumentMoniker": "C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\BodegaDESAM\\BodegaDESAM.csproj",
+              "RelativeDocumentMoniker": "BodegaDESAM\\BodegaDESAM.csproj",
+              "ToolTip": "C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\BodegaDESAM\\BodegaDESAM.csproj",
+              "RelativeToolTip": "BodegaDESAM\\BodegaDESAM.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAKAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-07-31T14:10:12.095Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Form.razor",
+              "DocumentMoniker": "C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor",
+              "RelativeDocumentMoniker": "BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor",
+              "ToolTip": "C:\\Users\\Usuario\\source\\repos\\BodegaDESAM\\BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor",
+              "RelativeToolTip": "BodegaDESAM\\BodegaDESAM\\Components\\Pages\\Entradas\\Form.razor",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-07-30T16:39:19.554Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

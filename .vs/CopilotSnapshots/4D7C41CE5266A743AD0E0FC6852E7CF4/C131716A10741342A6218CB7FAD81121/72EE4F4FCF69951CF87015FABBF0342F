@@ -1,0 +1,140 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BodegaDESAM.Migrations.App
+{
+    public partial class MoveModeloToModeloEntity : Migration
+    {
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql("""
+DO $$
+BEGIN
+    -- 1) Crear tabla modelo si no existe
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'modelo'
+    ) THEN
+        CREATE TABLE "BodegaDESAM_dev"."modelo" (
+            "id" BIGSERIAL NOT NULL,
+            "nombre" character varying(100) NOT NULL,
+            CONSTRAINT "pk_modelo" PRIMARY KEY ("id")
+        );
+
+        -- índice único case-insensitive
+        CREATE UNIQUE INDEX "ux_modelo_nombre" ON "BodegaDESAM_dev"."modelo" (lower("nombre"));
+    END IF;
+
+    -- 2) Agregar columna id_modelo a detalle_entrada si no existe
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND column_name = 'id_modelo'
+    ) THEN
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        ADD COLUMN "id_modelo" bigint NULL;
+    END IF;
+
+    -- 3) Poblar catálogo desde columna antigua detalle_entrada.modelo (si existe)
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND column_name = 'modelo'
+    ) THEN
+        INSERT INTO "BodegaDESAM_dev"."modelo" ("nombre")
+        SELECT DISTINCT trim("modelo") AS "nombre"
+        FROM "BodegaDESAM_dev"."detalle_entrada"
+        WHERE "modelo" IS NOT NULL AND length(trim("modelo")) > 0
+        ON CONFLICT DO NOTHING;
+
+        UPDATE "BodegaDESAM_dev"."detalle_entrada" d
+        SET "id_modelo" = m."id"
+        FROM "BodegaDESAM_dev"."modelo" m
+        WHERE d."modelo" IS NOT NULL
+          AND length(trim(d."modelo")) > 0
+          AND lower(trim(d."modelo")) = lower(m."nombre");
+
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        DROP COLUMN "modelo";
+    END IF;
+
+    -- 4) Crear FK si no existe
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND constraint_name = 'fk_detalle_entrada_modelo'
+    ) THEN
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        ADD CONSTRAINT "fk_detalle_entrada_modelo"
+        FOREIGN KEY ("id_modelo")
+        REFERENCES "BodegaDESAM_dev"."modelo" ("id")
+        ON DELETE NO ACTION;
+    END IF;
+END $$;
+""");
+        }
+
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql("""
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND column_name = 'modelo'
+    ) THEN
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        ADD COLUMN "modelo" character varying(100) NULL;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND column_name = 'id_modelo'
+    ) THEN
+        UPDATE "BodegaDESAM_dev"."detalle_entrada" d
+        SET "modelo" = m."nombre"
+        FROM "BodegaDESAM_dev"."modelo" m
+        WHERE d."id_modelo" = m."id";
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND constraint_name = 'fk_detalle_entrada_modelo'
+    ) THEN
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        DROP CONSTRAINT "fk_detalle_entrada_modelo";
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'BodegaDESAM_dev'
+          AND table_name = 'detalle_entrada'
+          AND column_name = 'id_modelo'
+    ) THEN
+        ALTER TABLE "BodegaDESAM_dev"."detalle_entrada"
+        DROP COLUMN "id_modelo";
+    END IF;
+END $$;
+""");
+        }
+    }
+}

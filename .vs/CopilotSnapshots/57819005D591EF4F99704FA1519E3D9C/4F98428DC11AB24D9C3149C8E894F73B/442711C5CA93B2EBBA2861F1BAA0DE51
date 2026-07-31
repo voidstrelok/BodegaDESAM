@@ -1,0 +1,94 @@
+﻿@page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>Login</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h3 class="page-title m-0">Login</h3>
+</div>
+
+<div class="card-section p-3" style="max-width: 420px;">
+    <EditForm Model="model" OnValidSubmit="OnSubmitAsync">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <InputText class="form-control" @bind-Value="model.Email" />
+            <ValidationMessage For="() => model.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <InputText type="password" class="form-control" @bind-Value="model.Password" />
+            <ValidationMessage For="() => model.Password" />
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="model.RememberMe" />
+            <label class="form-check-label">Recordarme</label>
+        </div>
+
+        <button class="btn btn-primary w-100" disabled="@busy" type="submit">Entrar</button>
+    </EditForm>
+</div>
+
+@code {
+    readonly LoginModel model = new();
+    string? error;
+    bool busy;
+
+    async Task OnSubmitAsync()
+    {
+        error = null;
+        busy = true;
+
+        try
+        {
+            // Minimal identity API endpoints use /login and /logout.
+            // This issues the auth cookie.
+            var response = await Http.PostAsJsonAsync("/login?useCookies=true", new
+            {
+                email = model.Email,
+                password = model.Password,
+                rememberMe = model.RememberMe
+            });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "Credenciales inválidas.";
+                return;
+            }
+
+            Nav.NavigateTo("/inventario", replace: true);
+        }
+        catch
+        {
+            error = "No fue posible iniciar sesión.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    sealed class LoginModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}

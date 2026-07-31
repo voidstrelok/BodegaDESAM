@@ -1,0 +1,16 @@
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace BodegaDESAM
+{
+    public partial class Modelo
+    {
+        public long Id { get; set; }
+
+        [Required(ErrorMessage = "El nombre es obligatorio")]
+        [StringLength(100, ErrorMessage = "El nombre debe tener máximo 100 caracteres")]
+        public string Nombre { get; set; } = string.Empty;
+
+        public virtual ICollection<DetalleEntrada> DetalleEntradas { get; set; } = new HashSet<DetalleEntrada>();
+    }
+}

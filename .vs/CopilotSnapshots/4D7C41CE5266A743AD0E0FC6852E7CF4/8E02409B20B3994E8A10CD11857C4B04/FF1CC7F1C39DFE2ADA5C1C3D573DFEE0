@@ -1,0 +1,28 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace BodegaDESAM
+{
+    public class ModeloEntityTypeConfiguration : IEntityTypeConfiguration<Modelo>
+    {
+        public void Configure(EntityTypeBuilder<Modelo> builder)
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("id")
+                .HasPrecision(32, 0);
+
+            builder.Property(x => x.Nombre)
+                .HasColumnName("nombre")
+                .HasColumnType("character varying")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            builder.HasIndex(x => x.Nombre).IsUnique();
+
+            builder.ToTable("modelo", "BodegaDESAM_dev");
+        }
+    }
+}

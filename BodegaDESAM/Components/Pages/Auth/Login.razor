@@ -1,0 +1,100 @@
+@page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@rendermode InteractiveServer
+@layout BodegaDESAM.Components.Layout.AuthLayout
+
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager Nav
+
+<PageTitle>Login</PageTitle>
+
+<div class="login-card">
+    <div class="login-mobile-brand"><i class="bi bi-box-seam-fill"></i><span>Bodega DESAM</span></div>
+    <div class="login-heading">
+        <h2>Bienvenido/a</h2>
+        <p>Ingresa tus credenciales para continuar.</p>
+    </div>
+    <EditForm Model="model" OnValidSubmit="OnSubmitAsync">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="login-email">Correo electrónico</label>
+            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-envelope"></i></span><InputText id="login-email" class="form-control" placeholder="nombre@desam.cl" autocomplete="username" @bind-Value="model.Email" /></div>
+            <ValidationMessage For="() => model.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="login-password">Contraseña</label>
+            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-lock"></i></span><InputText id="login-password" type="password" class="form-control" placeholder="••••••••" autocomplete="current-password" @bind-Value="model.Password" /></div>
+            <ValidationMessage For="() => model.Password" />
+        </div>
+
+        <div class="form-check login-remember">
+            <InputCheckbox class="form-check-input" @bind-Value="model.RememberMe" />
+            <label class="form-check-label">Recordarme</label>
+        </div>
+
+        <button class="btn btn-primary login-submit w-100" disabled="@busy" type="submit">@if (busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> } else { <i class="bi bi-box-arrow-in-right me-2"></i> }Ingresar</button>
+    </EditForm>
+</div>
+
+@code {
+    readonly LoginModel model = new();
+    string? error;
+    bool busy;
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("error", out var value)
+            && value == "1")
+        {
+            error = "Credenciales inválidas.";
+        }
+
+        if (query.TryGetValue("returnUrl", out var returnUrl) && !string.IsNullOrWhiteSpace(returnUrl))
+        {
+            model.ReturnUrl = returnUrl.ToString();
+        }
+    }
+
+    async Task OnSubmitAsync()
+    {
+        error = null;
+        busy = true;
+
+        try
+        {
+            var url = $"/auth/login?email={Uri.EscapeDataString(model.Email)}&password={Uri.EscapeDataString(model.Password)}&rememberMe={model.RememberMe.ToString().ToLowerInvariant()}";
+
+            if (!string.IsNullOrWhiteSpace(model.ReturnUrl))
+                url += $"&returnUrl={Uri.EscapeDataString(model.ReturnUrl)}";
+
+            Nav.NavigateTo(url, forceLoad: true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    sealed class LoginModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+
+        public string? ReturnUrl { get; set; }
+    }
+}

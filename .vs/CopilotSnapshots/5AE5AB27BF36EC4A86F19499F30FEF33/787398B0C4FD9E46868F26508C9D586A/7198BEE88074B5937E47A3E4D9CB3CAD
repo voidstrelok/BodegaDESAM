@@ -1,0 +1,11 @@
+﻿namespace BodegaDESAM.Models.Admin;
+
+public sealed class UserWithRolesVm
+{
+    public required string Id { get; init; }
+    public string? UserName { get; init; }
+    public string? Email { get; init; }
+    public string? Nombre { get; init; }
+    public string? Apellido { get; init; }
+    public IList<string> Roles { get; init; } = new List<string>();
+}

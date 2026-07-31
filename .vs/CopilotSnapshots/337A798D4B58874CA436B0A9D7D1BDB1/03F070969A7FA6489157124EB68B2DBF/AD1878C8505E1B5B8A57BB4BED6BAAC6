@@ -1,0 +1,101 @@
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace BodegaDESAM.Services
+{
+    public class AjusteInventarioService
+    {
+        private readonly IDbContextFactory<PostgresDataContext> _factory;
+        private readonly InventarioService _inventario;
+        private readonly AuditService _audit;
+
+        public AjusteInventarioService(
+            IDbContextFactory<PostgresDataContext> factory,
+            InventarioService inventario,
+            AuditService audit)
+        {
+            _factory = factory;
+            _inventario = inventario;
+            _audit = audit;
+        }
+
+        public async Task<List<AjusteInventario>> GetAllAsync()
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.AjusteInventario
+                .Include(a => a.Bodega)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Producto)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Marca)
+                .OrderByDescending(a => a.Fecha)
+                .ThenByDescending(a => a.Id)
+                .ToListAsync();
+        }
+
+        public async Task<AjusteInventario?> GetByIdAsync(int id)
+        {
+            using var db = _factory.CreateDbContext();
+            return await db.AjusteInventario
+                .Include(a => a.Bodega)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Producto)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Marca)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Modelo)
+                .FirstOrDefaultAsync(a => a.Id == id);
+        }
+
+        /// <summary>
+        /// Crea un ajuste de inventario. Valida que las disminuciones no dejen stock negativo.
+        /// </summary>
+        public async Task CreateAsync(AjusteInventario ajuste)
+        {
+            if (string.IsNullOrWhiteSpace(ajuste.IdUsuario))
+                throw new ArgumentException("IdUsuario es obligatorio.", nameof(ajuste));
+
+            if (!ajuste.DetalleAjuste.Any())
+                throw new InvalidOperationException("El ajuste debe tener al menos un ítem.");
+
+            // Validar que disminuciones no dejen stock negativo
+            var inventarioActual = await _inventario.GetInventarioActualAsync();
+
+            foreach (var detalle in ajuste.DetalleAjuste.Where(d => d.TipoAjuste == TipoAjuste.Disminucion))
+            {
+                var sku = inventarioActual.FirstOrDefault(i =>
+                    i.IdProducto == detalle.id_producto &&
+                    i.IdMarca == detalle.id_marca &&
+                    i.IdModelo == detalle.id_modelo);
+
+                var stockActual = sku?.StockActual ?? 0;
+                if (detalle.Cantidad > stockActual)
+                {
+                    var nombre = sku?.NombreProducto ?? $"Producto #{detalle.id_producto}";
+                    throw new InvalidOperationException(
+                        $"Stock insuficiente para '{nombre}': stock actual {stockActual}, cantidad a disminuir {detalle.Cantidad}.");
+                }
+            }
+
+            using var db = _factory.CreateDbContext();
+            db.AjusteInventario.Add(ajuste);
+            await db.SaveChangesAsync();
+
+            await _audit.RegistrarAsync(ajuste.IdUsuario, AuditAcciones.Crear, AuditEntidades.AjusteInventario, ajuste.Id,
+                new { ajuste.Motivo, items = ajuste.DetalleAjuste.Count });
+        }
+
+        public async Task DeleteAsync(int id, string usuarioId)
+        {
+            using var db = _factory.CreateDbContext();
+            var ajuste = await db.AjusteInventario
+                .Include(a => a.DetalleAjuste)
+                .FirstOrDefaultAsync(a => a.Id == id)
+                ?? throw new KeyNotFoundException($"Ajuste #{id} no encontrado.");
+
+            db.AjusteInventario.Remove(ajuste);
+            await db.SaveChangesAsync();
+
+            await _audit.RegistrarAsync(usuarioId, AuditAcciones.Eliminar, AuditEntidades.AjusteInventario, id);
+        }
+    }
+}

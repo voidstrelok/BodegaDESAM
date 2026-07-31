@@ -1,0 +1,213 @@
+@* 
+    EJEMPLO DE COMPONENTE CON NUEVO SISTEMA DE TEMAS
+    Este es un componente de ejemplo que muestra las mejores prácticas
+    para usar el nuevo sistema de temas minimalista
+*@
+
+@page "/ejemplo-tema"
+
+<h3 class="page-title">Ejemplo de Componente con Temas</h3>
+
+<!-- Toolbar con controles -->
+<div class="page-toolbar">
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i>
+            Nuevo
+        </button>
+        <button class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download"></i>
+            Exportar
+        </button>
+    </div>
+    
+    <div class="d-flex gap-2 align-items-center">
+        <div class="input-group input-group-sm" style="max-width: 300px;">
+            <span class="input-group-text">
+                <i class="bi bi-search"></i>
+            </span>
+            <input class="form-control" placeholder="Buscar..." />
+        </div>
+        <span class="text-muted small">Total: 42 items</span>
+    </div>
+</div>
+
+<!-- Sección de Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card-section p-3">
+            <h6 class="mb-2">Métrica 1</h6>
+            <div class="h3 mb-0 text-primary">1,234</div>
+            <small class="text-muted">+12% vs mes anterior</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-section p-3">
+            <h6 class="mb-2">Métrica 2</h6>
+            <div class="h3 mb-0 text-success">567</div>
+            <small class="text-muted">+5% vs mes anterior</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-section p-3">
+            <h6 class="mb-2">Métrica 3</h6>
+            <div class="h3 mb-0 text-warning">89</div>
+            <small class="text-muted">-3% vs mes anterior</small>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de ejemplo -->
+<div class="card-section p-2 mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Precio</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>#001</td>
+                    <td>Producto A</td>
+                    <td><span class="badge bg-success">Activo</span></td>
+                    <td class="text-end num">125</td>
+                    <td class="text-end num">$1,299.99</td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>#002</td>
+                    <td>Producto B</td>
+                    <td><span class="badge bg-warning">Pendiente</span></td>
+                    <td class="text-end num">50</td>
+                    <td class="text-end num">$799.00</td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>#003</td>
+                    <td>Producto C</td>
+                    <td><span class="badge bg-danger">Inactivo</span></td>
+                    <td class="text-end num">0</td>
+                    <td class="text-end num">$459.50</td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Formulario de ejemplo -->
+<div class="card-section p-3 mb-4">
+    <h5 class="mb-3">Formulario de Ejemplo</h5>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Nombre</label>
+            <input type="text" class="form-control" placeholder="Ingrese nombre..." />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" placeholder="email@ejemplo.com" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Categoría</label>
+            <select class="form-select">
+                <option>-- Seleccione --</option>
+                <option>Categoría 1</option>
+                <option>Categoría 2</option>
+                <option>Categoría 3</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Cantidad</label>
+            <input type="number" class="form-control" value="0" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-control" />
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="checkEjemplo">
+                <label class="form-check-label" for="checkEjemplo">
+                    Acepto los términos y condiciones
+                </label>
+            </div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Comentarios</label>
+            <textarea class="form-control" rows="3" placeholder="Ingrese comentarios..."></textarea>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i>
+                Guardar
+            </button>
+            <button type="button" class="btn btn-secondary ms-2">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts de ejemplo -->
+<div class="mb-4">
+    <div class="alert alert-success mb-2">
+        <i class="bi bi-check-circle me-2"></i>
+        Operación completada exitosamente
+    </div>
+    <div class="alert alert-warning mb-2">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Advertencia: Revise los datos ingresados
+    </div>
+    <div class="alert alert-danger mb-2">
+        <i class="bi bi-x-circle me-2"></i>
+        Error: No se pudo completar la operación
+    </div>
+    <div class="alert alert-info mb-0">
+        <i class="bi bi-info-circle me-2"></i>
+        Información: Esta es una notificación informativa
+    </div>
+</div>
+
+<!-- Lista de mejores prácticas -->
+<div class="card-section p-3">
+    <h5 class="mb-3">✨ Mejores Prácticas del Nuevo Diseño</h5>
+    <ul class="mb-0">
+        <li>Usa <code>page-title</code> para títulos de página</li>
+        <li>Usa <code>page-toolbar</code> para barras de herramientas</li>
+        <li>Usa <code>card-section</code> para contenedores de contenido</li>
+        <li>Usa <code>btn-sm</code> para botones en tablas y toolbars</li>
+        <li>Usa <code>text-end num</code> para números alineados a la derecha</li>
+        <li>Usa <code>table-hover</code> para tablas interactivas</li>
+        <li>Usa iconos de Bootstrap Icons (<code>bi bi-*</code>)</li>
+        <li>Usa <code>gap-2</code> o <code>gap-3</code> para espaciado entre elementos</li>
+        <li>Prefiere <code>d-flex</code> con <code>gap-*</code> sobre margins manuales</li>
+        <li>Los colores se adaptan automáticamente al tema claro/oscuro</li>
+    </ul>
+</div>

@@ -1,0 +1,48 @@
+﻿// Theme Manager for BodegaDESAM
+(function () {
+    const THEME_KEY = 'bodega-theme';
+
+    function applyTheme(isDark) {
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }
+
+    function getSystemPreference() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function loadPreference() {
+        try {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved !== null) return saved === 'dark';
+        } catch (e) { /* ignore */ }
+        return getSystemPreference();
+    }
+
+    function savePreference(isDark) {
+        try {
+            localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        } catch (e) { /* ignore */ }
+    }
+
+    // Aplicar al cargar para evitar flash
+    applyTheme(loadPreference());
+
+    window.themeManager = {
+        loadPreference: function () {
+            const isDark = loadPreference();
+            applyTheme(isDark);
+            return isDark;
+        },
+        setIsDark: function (isDark) {
+            applyTheme(isDark);
+            savePreference(isDark);
+        },
+        getIsDark: function () {
+            return document.documentElement.getAttribute('data-theme') === 'dark';
+        }
+    };
+})();

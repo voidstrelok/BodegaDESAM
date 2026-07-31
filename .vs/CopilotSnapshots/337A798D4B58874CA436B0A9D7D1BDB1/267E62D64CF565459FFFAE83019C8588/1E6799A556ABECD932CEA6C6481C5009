@@ -1,0 +1,71 @@
+﻿using BodegaDESAM;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace BodegaDESAM
+{
+    public class ProductoSerieEntityTypeConfiguration : IEntityTypeConfiguration<ProductoSerie>
+    {
+        public void Configure(EntityTypeBuilder<ProductoSerie> builder)
+        {
+            builder
+                .HasKey(x => x.Id);
+
+            builder
+                .HasOne(x => x.Producto)
+                .WithMany(x => x.ProductoSeries)
+                .HasForeignKey(x => x.id_producto)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.DetalleEntrada)
+                .WithMany(x => x.ProductoSeries)
+                .HasForeignKey(x => x.id_detalle_entrada)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .HasOne(x => x.Salida)
+                .WithMany()
+                .HasForeignKey(x => x.id_salida)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder
+                .Property(x => x.Id)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("id")
+                .HasPrecision(32, 0);
+
+            builder
+                .Property(x => x.Serie)
+                .IsRequired()
+                .HasColumnName("serie")
+                .HasColumnType("character varying")
+                .HasMaxLength(100);
+
+            builder
+                .Property(x => x.id_producto)
+                .HasColumnName("id_producto")
+                .HasPrecision(32, 0);
+
+            builder
+                .Property(x => x.id_detalle_entrada)
+                .HasColumnName("id_detalle_entrada")
+                .HasPrecision(32, 0);
+
+            builder
+                .Property(x => x.id_salida)
+                .HasColumnName("id_salida")
+                .HasPrecision(32, 0);
+
+            builder
+                .HasIndex(x => new { x.id_producto, x.Serie })
+                .IsUnique();
+
+            builder
+                .HasIndex(x => x.id_salida);
+
+            builder
+                .ToTable("producto_serie", "Bodega_dev");
+        }
+    }
+}

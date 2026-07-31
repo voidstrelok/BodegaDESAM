@@ -1,0 +1,60 @@
+@page "/inventario"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Public)]
+
+@using BodegaDESAM.Services
+@inject InventarioService InventarioService
+@inject InventarioDetalleService InventarioDetalleService
+@inject EstablecimientoService EstablecimientoService
+@inject NavigationManager Nav
+
+<div class="page-header"><div><h3 class="page-title m-0">Inventario actual</h3><p class="page-subtitle mb-0">Existencias consolidadas por producto, marca y modelo.</p></div></div>
+
+<div class="page-toolbar inventory-toolbar">
+    <div class="inventory-filters">
+        <div class="input-group input-group-sm inventory-search"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" placeholder="Buscar producto, marca o modelo..." @bind="Filtro" @bind:event="oninput" /></div>
+        <select class="form-select form-select-sm" @bind="CategoriaFiltro"><option value="">Todas las categorías</option>@foreach (var c in CategoriasDisponibles) { <option value="@c">@c</option> }</select>
+        <select class="form-select form-select-sm" @bind="MarcaFiltro"><option value="">Todas las marcas</option>@foreach (var m in MarcasDisponibles) { <option value="@m">@m</option> }</select>
+        <select class="form-select form-select-sm" @bind="EstadoStockFiltro"><option value="">Cualquier stock</option><option value="con-stock">Con stock</option><option value="sin-stock">Sin stock</option><option value="bajo-cero">Stock negativo</option></select>
+        <div class="form-check form-check-sm"><input class="form-check-input" type="checkbox" id="soloConAjustes" @bind="SoloConAjustes" /><label class="form-check-label" for="soloConAjustes">Con ajustes</label></div>
+        @if (HayFiltros) { <button class="btn btn-outline-secondary btn-sm" @onclick="LimpiarFiltros"><i class="bi bi-x-lg me-1"></i>Limpiar</button> }
+    </div>
+    @if (items != null) { <span class="text-muted small">@Filtrados.Count de @items.Count SKU</span> }
+</div>
+
+@if (items == null) { <p>Cargando inventario...</p> }
+else if (items.Count == 0) { <div class="empty-state">No hay movimientos registrados para mostrar inventario.</div> }
+else if (Filtrados.Count == 0) { <div class="empty-state">No hay resultados con los filtros seleccionados.</div> }
+else
+{
+    <div class="movement-table card-section d-none d-md-block inventory-table"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Producto</th><th>Marca / modelo</th><th>Categoría</th><th class="text-end">Entradas</th><th class="text-end">Salidas</th><th class="text-end">Ajustes</th><th class="text-end">Stock</th><th class="movement-actions-col">Acciones</th></tr></thead><tbody>@foreach (var i in Filtrados) { <tr><td><div class="fw-semibold">@i.NombreProducto</div></td><td><div>@i.Marca</div><div class="small text-muted">@(i.Modelo ?? "Sin modelo")</div></td><td>@(i.Categoria ?? "Sin categoría")</td><td class="num">@i.TotalEntradas</td><td class="num">@i.TotalSalidas</td><td class="num"><span class="@(i.NetoAjustes > 0 ? "text-success" : i.NetoAjustes < 0 ? "text-danger" : "text-muted")">@(i.NetoAjustes > 0 ? "+" : "")@i.NetoAjustes</span></td><td class="num fw-bold">@i.StockActual</td><td><div class="movement-actions"><button class="btn btn-outline-secondary btn-sm" title="Ver movimientos" @onclick="() => VerMovimientos(i)"><i class="bi bi-clock-history me-1"></i>Movimientos</button></div></td></tr> }</tbody></table></div></div>
+    <div class="movement-cards d-md-none">@foreach (var i in Filtrados) { <article class="movement-card card-section"><div class="movement-card-header"><div><div class="fw-semibold">@i.NombreProducto</div><div class="small text-muted">@i.Marca · @(i.Modelo ?? "Sin modelo")</div></div><div class="text-end"><div class="detail-quantity">@i.StockActual</div><div class="small text-muted">en stock</div></div></div><dl class="movement-card-data"><div><dt>Entradas</dt><dd>@i.TotalEntradas</dd></div><div><dt>Salidas</dt><dd>@i.TotalSalidas</dd></div><div><dt>Ajustes</dt><dd class="@(i.NetoAjustes > 0 ? "text-success" : i.NetoAjustes < 0 ? "text-danger" : "")">@(i.NetoAjustes > 0 ? "+" : "")@i.NetoAjustes</dd></div><div><dt>Categoría</dt><dd>@(i.Categoria ?? "Sin categoría")</dd></div></dl><div class="movement-card-actions"><button class="btn btn-outline-secondary" @onclick="() => VerMovimientos(i)"><i class="bi bi-clock-history me-1"></i>Movimientos</button></div></article> }</div>
+}
+
+@if (MostrarModal && ProductoSeleccionado != null)
+{
+    <div class="modal fade show d-block inventory-movements-modal" tabindex="-1" role="dialog" aria-modal="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><span class="movement-kind">Historial de movimientos</span><h5 class="modal-title">@ProductoSeleccionado.NombreProducto</h5><div class="small text-muted">@ProductoSeleccionado.Marca · @(ProductoSeleccionado.Modelo ?? "Sin modelo")</div></div><button class="btn-close" aria-label="Cerrar" @onclick="CerrarModal"></button></div><div class="modal-body"><div class="inventory-modal-filters"><div class="input-group input-group-sm"><span class="input-group-text">N.º serie</span><input class="form-control" placeholder="Buscar serie..." @bind="SerieFiltro" @bind:event="oninput" /></div><select class="form-select form-select-sm" @bind="EstablecimientoFiltro"><option value="">Todos los establecimientos</option>@foreach (var e in Establecimientos) { <option value="@e.Id">@e.Nombre</option> }</select><button class="btn btn-primary btn-sm" @onclick="AplicarFiltrosMovimientos">Aplicar</button>@if (!string.IsNullOrWhiteSpace(SerieFiltro) || !string.IsNullOrWhiteSpace(EstablecimientoFiltro)) { <button class="btn btn-outline-secondary btn-sm" @onclick="LimpiarFiltrosMovimientos">Limpiar</button> }</div>
+        @if (Movimientos == null) { <div class="text-muted py-4 text-center">Cargando movimientos...</div> }
+        else if (Movimientos.Count == 0) { <div class="empty-state">No hay movimientos que coincidan con los filtros.</div> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle mb-0 inventory-movements-table"><thead><tr><th>Tipo</th><th>Documento</th><th>Fecha</th><th>Referencia / detalle</th><th>Destino / bodega</th><th>Series</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var m in Movimientos) { <tr><td><span class="badge @TipoClase(m.Tipo)">@m.Tipo</span></td><td class="fw-semibold">#@m.IdDocumento</td><td class="text-nowrap">@m.Fecha.ToString("dd/MM/yyyy")</td><td><div>@m.Referencia</div>@if (!string.IsNullOrWhiteSpace(m.Detalle)) { <div class="small text-muted">@m.Detalle</div> }</td><td>@(m.Ubicacion ?? "—")</td><td class="series-cell">@(m.Series.Count > 0 ? string.Join(", ", m.Series) : "Sin serie")</td><td class="num fw-semibold @(m.Cantidad > 0 ? "text-success" : "text-danger")">@(m.Cantidad > 0 ? "+" : "")@m.Cantidad</td><td><button class="btn btn-outline-secondary btn-sm text-nowrap" @onclick="() => IrADetalle(m)">Ver</button></td></tr> }</tbody></table></div> }
+    </div><div class="modal-footer"><span class="text-muted small me-auto">@((Movimientos?.Count ?? 0)) movimiento(s)</span><button class="btn btn-secondary" @onclick="CerrarModal">Cerrar</button></div></div></div></div><div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<InventarioProductoDto>? items; private List<Establecimiento> Establecimientos { get; set; } = new();
+    private string? Filtro; private string? CategoriaFiltro; private string? MarcaFiltro; private string? EstadoStockFiltro; private bool SoloConAjustes;
+    private string? SerieFiltro; private string? EstablecimientoFiltro; private bool MostrarModal; private InventarioProductoDto? ProductoSeleccionado; private List<MovimientoProductoDetalleDto>? Movimientos;
+    private List<string> CategoriasDisponibles => (items ?? new()).Select(x => x.Categoria).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList()!;
+    private List<string> MarcasDisponibles => (items ?? new()).Select(x => x.Marca).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList()!;
+    private bool HayFiltros => !string.IsNullOrWhiteSpace(Filtro) || !string.IsNullOrWhiteSpace(CategoriaFiltro) || !string.IsNullOrWhiteSpace(MarcaFiltro) || !string.IsNullOrWhiteSpace(EstadoStockFiltro) || SoloConAjustes;
+    private List<InventarioProductoDto> Filtrados => (items ?? new()).Where(x => (string.IsNullOrWhiteSpace(Filtro) || x.NombreProducto.Contains(Filtro, StringComparison.OrdinalIgnoreCase) || (x.Marca?.Contains(Filtro, StringComparison.OrdinalIgnoreCase) ?? false) || (x.Modelo?.Contains(Filtro, StringComparison.OrdinalIgnoreCase) ?? false) || (x.Categoria?.Contains(Filtro, StringComparison.OrdinalIgnoreCase) ?? false)) && (string.IsNullOrWhiteSpace(CategoriaFiltro) || string.Equals(x.Categoria, CategoriaFiltro, StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(MarcaFiltro) || string.Equals(x.Marca, MarcaFiltro, StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(EstadoStockFiltro) || EstadoStockFiltro == "con-stock" && x.StockActual > 0 || EstadoStockFiltro == "sin-stock" && x.StockActual == 0 || EstadoStockFiltro == "bajo-cero" && x.StockActual < 0) && (!SoloConAjustes || x.NetoAjustes != 0)).ToList();
+    protected override async Task OnInitializedAsync() { items = await InventarioService.GetInventarioActualAsync(); Establecimientos = await EstablecimientoService.GetAllAsync(); }
+    private void LimpiarFiltros() { Filtro = CategoriaFiltro = MarcaFiltro = EstadoStockFiltro = string.Empty; SoloConAjustes = false; }
+    private async Task VerMovimientos(InventarioProductoDto item) { ProductoSeleccionado = item; MostrarModal = true; Movimientos = null; await CargarMovimientosAsync(); }
+    private async Task CargarMovimientosAsync() { if (ProductoSeleccionado == null) return; int? idEst = int.TryParse(EstablecimientoFiltro, out var parsed) ? parsed : null; Movimientos = await InventarioDetalleService.GetMovimientosDetalleAsync(ProductoSeleccionado.IdProducto, ProductoSeleccionado.IdMarca, ProductoSeleccionado.IdModelo, SerieFiltro, idEst); }
+    private Task AplicarFiltrosMovimientos() => CargarMovimientosAsync();
+    private async Task LimpiarFiltrosMovimientos() { SerieFiltro = EstablecimientoFiltro = string.Empty; await CargarMovimientosAsync(); }
+    private static string TipoClase(string tipo) => tipo switch { "Entrada" => "bg-success", "Salida" => "bg-danger", "Ajuste (+)" => "bg-primary", _ => "bg-warning text-dark" };
+    private void IrADetalle(MovimientoProductoDetalleDto movimiento) { CerrarModal(); Nav.NavigateTo(movimiento.Tipo == "Entrada" ? $"/entradas/{movimiento.IdDocumento}" : movimiento.Tipo == "Salida" ? $"/salidas/{movimiento.IdDocumento}" : $"/ajustes/{movimiento.IdDocumento}"); }
+    private void CerrarModal() { MostrarModal = false; ProductoSeleccionado = null; Movimientos = null; SerieFiltro = EstablecimientoFiltro = string.Empty; }
+}
