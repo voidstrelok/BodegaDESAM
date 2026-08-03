@@ -56,7 +56,7 @@ namespace BodegaDESAM.Services
                 .ToListAsync();
 
             var seriesPorDetalleEntrada = seriesEntrada
-                .GroupBy(x => x.id_detalle_entrada)
+                .GroupBy(x => x.id_detalle_entrada!.Value)
                 .ToDictionary(g => g.Key, g => g.Select(x => x.Serie).OrderBy(x => x).ToList());
 
             var salidasBaseQ = db.DetalleSalida

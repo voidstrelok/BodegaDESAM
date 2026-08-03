@@ -112,7 +112,7 @@ namespace BodegaDESAM
                 .HasPrecision(32, 0);
 
             builder
-                .ToTable("detalle_salida", "Bodega_dev");
+                .ToTable("detalle_salida", "BodegaDESAM");
         }
     }
 }

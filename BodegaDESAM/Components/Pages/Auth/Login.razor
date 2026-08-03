@@ -1,9 +1,7 @@
 @page "/login"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
-@rendermode InteractiveServer
 @layout BodegaDESAM.Components.Layout.AuthLayout
 
-@using System.ComponentModel.DataAnnotations
 @inject NavigationManager Nav
 
 <PageTitle>Login</PageTitle>
@@ -14,8 +12,8 @@
         <h2>Bienvenido/a</h2>
         <p>Ingresa tus credenciales para continuar.</p>
     </div>
-    <EditForm Model="model" OnValidSubmit="OnSubmitAsync">
-        <DataAnnotationsValidator />
+    <form method="post" action="/auth/login" data-enhance="false">
+        <AntiforgeryToken />
 
         @if (!string.IsNullOrWhiteSpace(error))
         {
@@ -23,78 +21,38 @@
         }
 
         <div class="mb-3">
-            <label class="form-label" for="login-email">Correo electrónico</label>
-            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-envelope"></i></span><InputText id="login-email" class="form-control" placeholder="nombre@desam.cl" autocomplete="username" @bind-Value="model.Email" /></div>
-            <ValidationMessage For="() => model.Email" />
+            <label class="form-label" for="login-user">Nombre de Usuario</label>
+            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-person"></i></span><input id="login-user" name="user" type="text" class="form-control" placeholder="nombre@sector" autocomplete="username" required /></div>
         </div>
 
         <div class="mb-3">
             <label class="form-label" for="login-password">Contraseña</label>
-            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-lock"></i></span><InputText id="login-password" type="password" class="form-control" placeholder="••••••••" autocomplete="current-password" @bind-Value="model.Password" /></div>
-            <ValidationMessage For="() => model.Password" />
+            <div class="input-group login-input-group"><span class="input-group-text"><i class="bi bi-lock"></i></span><input id="login-password" name="password" type="password" class="form-control" autocomplete="current-password" required /></div>
         </div>
 
         <div class="form-check login-remember">
-            <InputCheckbox class="form-check-input" @bind-Value="model.RememberMe" />
-            <label class="form-check-label">Recordarme</label>
+            <input id="login-remember" name="rememberMe" type="checkbox" class="form-check-input" value="true" />
+            <label class="form-check-label" for="login-remember">Recordarme</label>
         </div>
 
-        <button class="btn btn-primary login-submit w-100" disabled="@busy" type="submit">@if (busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> } else { <i class="bi bi-box-arrow-in-right me-2"></i> }Ingresar</button>
-    </EditForm>
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <button class="btn btn-primary login-submit w-100" type="submit"><i class="bi bi-box-arrow-in-right me-2"></i>Ingresar</button>
+    </form>
 </div>
 
 @code {
-    readonly LoginModel model = new();
     string? error;
-    bool busy;
+    string? returnUrl;
 
     protected override void OnInitialized()
     {
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
 
-        if (query.TryGetValue("error", out var value)
-            && value == "1")
-        {
+        if (query.TryGetValue("error", out var value) && value == "1")
             error = "Credenciales inválidas.";
-        }
 
-        if (query.TryGetValue("returnUrl", out var returnUrl) && !string.IsNullOrWhiteSpace(returnUrl))
-        {
-            model.ReturnUrl = returnUrl.ToString();
-        }
-    }
-
-    async Task OnSubmitAsync()
-    {
-        error = null;
-        busy = true;
-
-        try
-        {
-            var url = $"/auth/login?email={Uri.EscapeDataString(model.Email)}&password={Uri.EscapeDataString(model.Password)}&rememberMe={model.RememberMe.ToString().ToLowerInvariant()}";
-
-            if (!string.IsNullOrWhiteSpace(model.ReturnUrl))
-                url += $"&returnUrl={Uri.EscapeDataString(model.ReturnUrl)}";
-
-            Nav.NavigateTo(url, forceLoad: true);
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
-
-    sealed class LoginModel
-    {
-        [Required, EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        public string Password { get; set; } = string.Empty;
-
-        public bool RememberMe { get; set; }
-
-        public string? ReturnUrl { get; set; }
+        if (query.TryGetValue("returnUrl", out var requestedReturnUrl) && !string.IsNullOrWhiteSpace(requestedReturnUrl))
+            returnUrl = requestedReturnUrl.ToString();
     }
 }

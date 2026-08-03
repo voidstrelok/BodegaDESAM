@@ -53,7 +53,7 @@ namespace BodegaDESAM
                 .HasColumnType("text");
 
             builder
-                .ToTable("salida", "Bodega_dev");
+                .ToTable("salida", "BodegaDESAM");
         }
     }
 }

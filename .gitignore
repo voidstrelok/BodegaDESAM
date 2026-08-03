@@ -1,2 +1,6 @@
 BodegaDESAM/bin/
 BodegaDESAM/obj/
+.agents/
+.github/
+.vs/
+.env

@@ -12,7 +12,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.AddColumn<int>(
                 name: "id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 type: "integer",
                 precision: 32,
@@ -21,16 +21,16 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_detalle_entrada");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_detalle_salida_detalle_entrada_id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_detalle_entrada",
-                principalSchema: "Bodega_dev",
+                principalSchema: "BodegaDESAM",
                 principalTable: "detalle_entrada",
                 principalColumn: "id");
         }
@@ -40,17 +40,17 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_detalle_salida_detalle_entrada_id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida");
 
             migrationBuilder.DropIndex(
                 name: "IX_detalle_salida_id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida");
 
             migrationBuilder.DropColumn(
                 name: "id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida");
         }
     }

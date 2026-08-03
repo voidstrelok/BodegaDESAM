@@ -14,7 +14,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.CreateTable(
                 name: "ajuste_inventario",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -31,14 +31,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_ajuste_inventario_bodega_id_bodega",
                         column: x => x.id_bodega,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "bodega",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -57,57 +57,57 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_detalle_ajuste_ajuste_inventario_id_ajuste",
                         column: x => x.id_ajuste,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "ajuste_inventario",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_detalle_ajuste_marca_id_marca",
                         column: x => x.id_marca,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "marca",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_ajuste_modelo_id_modelo",
                         column: x => x.id_modelo,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "modelo",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_ajuste_producto_id_producto",
                         column: x => x.id_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "producto",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ajuste_inventario_id_bodega",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "ajuste_inventario",
                 column: "id_bodega");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_ajuste_id_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste",
                 column: "id_ajuste");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_ajuste_id_marca",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste",
                 column: "id_marca");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_ajuste_id_modelo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste",
                 column: "id_modelo");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_ajuste_id_producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste",
                 column: "id_producto");
         }
@@ -117,11 +117,11 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "detalle_ajuste",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "ajuste_inventario",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
         }
     }
 }

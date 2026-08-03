@@ -33,7 +33,7 @@ namespace BodegaDESAM
             // Índice único compuesto: un modelo con el mismo nombre no puede repetirse dentro de una marca
             builder.HasIndex(x => new { x.id_marca, x.Nombre }).IsUnique();
 
-            builder.ToTable("modelo", "Bodega_dev");
+            builder.ToTable("modelo", "BodegaDESAM");
         }
     }
 }

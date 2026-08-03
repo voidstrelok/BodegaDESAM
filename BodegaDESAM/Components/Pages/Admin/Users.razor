@@ -6,6 +6,7 @@
 @using BodegaDESAM.Models.Admin
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
+@using System.Security.Cryptography
 
 @inject UserManager<IdentityUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
@@ -152,7 +153,7 @@ else
                                 <button class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="() => AddRoleAsync(u.Id)" title="Agrega el rol seleccionado">Agregar rol</button>
                                 <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => RemoveRoleAsync(u.Id)" title="Quita el rol seleccionado">Quitar rol</button>
 
-                                <button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="() => ResetPasswordAsync(u.Id)" title="Resetea a una clave temporal">Reset password</button>
+                                <button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="() => ResetPasswordAsync(u.Id)" title="Genera una clave temporal aleatoria">Reset password</button>
                             </div>
                         </td>
                     </tr>
@@ -496,15 +497,18 @@ else
                 return;
             }
 
+            const string passwordCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$%";
+            var temporaryPassword = RandomNumberGenerator.GetString(passwordCharacters, 20);
             var token = await UserManager.GeneratePasswordResetTokenAsync(user);
-            var res = await UserManager.ResetPasswordAsync(user, token, "123456");
+            var res = await UserManager.ResetPasswordAsync(user, token, temporaryPassword);
             if (!res.Succeeded)
             {
                 error = string.Join(" ", res.Errors.Select(e => e.Description));
                 return;
             }
 
-            success = "Password reseteada a: Cambio123";
+            await UserManager.SetLockoutEndDateAsync(user, null);
+            success = $"Contraseña temporal generada: {temporaryPassword}. Entrégala al usuario por un canal seguro.";
         }
         finally
         {

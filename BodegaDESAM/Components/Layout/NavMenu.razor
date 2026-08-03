@@ -181,10 +181,13 @@
                 <!-- Logout Section -->
                 <div class="nav-section mt-auto">
                     <div class="nav-item">
-                        <NavLink class="nav-link nav-link-danger" href="logout">
-                            <i class="bi bi-box-arrow-left"></i>
-                            <span>Cerrar Sesión</span>
-                        </NavLink>
+                        <form method="post" action="/auth/logout" data-enhance="false">
+                            <AntiforgeryToken />
+                            <button class="nav-link nav-link-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                <i class="bi bi-box-arrow-left"></i>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </Authorized>

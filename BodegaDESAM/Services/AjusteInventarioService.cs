@@ -50,10 +50,10 @@ namespace BodegaDESAM.Services
                     .ThenInclude(d => d.Lote)
                 .Include(a => a.DetalleAjuste)
                     .ThenInclude(d => d.DetalleEntradaOrigen)
-                        .ThenInclude(e => e.Entrada)
+                        .ThenInclude(e => e!.Entrada)
                 .Include(a => a.DetalleAjuste)
                     .ThenInclude(d => d.DetalleAjusteOrigen)
-                        .ThenInclude(o => o.Ajuste)
+                        .ThenInclude(o => o!.Ajuste)
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 

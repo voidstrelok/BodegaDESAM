@@ -47,7 +47,7 @@ namespace BodegaDESAM
                 .HasColumnType("character varying")
                 .HasMaxLength(200);
 
-            builder.ToTable("lote", "Bodega_dev");
+            builder.ToTable("lote", "BodegaDESAM");
         }
     }
 }

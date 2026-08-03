@@ -80,7 +80,7 @@ namespace BodegaDESAM
                 .HasIndex(x => x.id_salida);
 
             builder
-                .ToTable("producto_serie", "Bodega_dev");
+                .ToTable("producto_serie", "BodegaDESAM");
         }
     }
 }

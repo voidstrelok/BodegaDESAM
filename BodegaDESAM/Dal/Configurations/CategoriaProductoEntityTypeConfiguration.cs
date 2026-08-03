@@ -24,7 +24,7 @@ namespace BodegaDESAM
                 .HasMaxLength(50);
 
             builder
-                .ToTable("categoria_producto", "Bodega_dev");
+                .ToTable("categoria_producto", "BodegaDESAM");
         }
     }
 }

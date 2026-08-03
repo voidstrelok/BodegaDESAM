@@ -12,7 +12,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.AddColumn<int>(
                 name: "StockMinimo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto",
                 type: "integer",
                 nullable: true);
@@ -23,7 +23,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "StockMinimo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto");
         }
     }

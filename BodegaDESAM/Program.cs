@@ -3,6 +3,8 @@ using BodegaDESAM.Components;
 using BodegaDESAM.Data;
 using BodegaDESAM.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -14,19 +16,19 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 
 //BDD - Contexto unificado con Identity
 builder.Services.AddDbContextFactory<PostgresDataContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("PostgresDataContext"),
-        o => o.MigrationsHistoryTable("__EFMigrationsHistory", "Bodega_dev")));
+        o => o.MigrationsHistoryTable("__EFMigrationsHistory", "BodegaDESAM")));
 
 // Registrar también como DbContext normal para Identity
 builder.Services.AddDbContext<PostgresDataContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("PostgresDataContext"),
-        o => o.MigrationsHistoryTable("__EFMigrationsHistory", "Bodega_dev")));
+        o => o.MigrationsHistoryTable("__EFMigrationsHistory", "BodegaDESAM")));
 
 builder.Services
     .AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -74,12 +76,24 @@ builder.Services.AddScoped<AlertaService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AjusteInventarioService>();
 builder.Services.AddSingleton<ThemeService>(); // Singleton para mantener estado entre navegaciones
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<PostgresDataContext>();
+
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    Directory.CreateDirectory(dataProtectionKeysPath);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+        .SetApplicationName("BodegaDESAM");
+}
 
 var app = builder.Build();
 
 // Aplicar migraciones pendientes automáticamente (necesario en entornos contenerizados)
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment()))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PostgresDataContext>();
     await db.Database.MigrateAsync();
 }
@@ -94,6 +108,14 @@ if (app.Environment.IsDevelopment())
 //
 
 // Configure the HTTP request pipeline.
+if (builder.Configuration.GetValue<bool>("ReverseProxy:Enabled"))
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -114,9 +136,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode();
+
 app.Run();

@@ -25,7 +25,7 @@ namespace BodegaDESAM
                 .HasColumnType("character varying");
 
             builder
-                .ToTable("establecimiento", "Bodega_dev");
+                .ToTable("establecimiento", "BodegaDESAM");
         }
     }
 }

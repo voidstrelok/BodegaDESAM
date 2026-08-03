@@ -257,7 +257,7 @@ namespace BodegaDESAM.Services
         {
             using var db = _factory.CreateDbContext();
             return await db.ProductoSerie.AsNoTracking().Include(x => x.DetalleAjuste)
-                .Where(x => x.id_detalle_ajuste.HasValue && x.DetalleAjuste.id_ajuste == idAjuste)
+                .Where(x => x.id_detalle_ajuste.HasValue && x.DetalleAjuste!.id_ajuste == idAjuste)
                 .OrderBy(x => x.Serie).ToListAsync();
         }
     }

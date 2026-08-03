@@ -13,7 +13,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.AlterColumn<int>(
                 name: "id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 type: "integer",
                 precision: 32,
@@ -25,7 +25,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.AddColumn<int>(
                 name: "id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 type: "integer",
                 precision: 32,
@@ -34,23 +34,23 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.AddColumn<DateOnly>(
                 name: "FechaVencimiento",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste",
                 type: "date",
                 nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_producto_serie_id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 column: "id_detalle_ajuste");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_producto_serie_detalle_ajuste_id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 column: "id_detalle_ajuste",
-                principalSchema: "Bodega_dev",
+                principalSchema: "BodegaDESAM",
                 principalTable: "detalle_ajuste",
                 principalColumn: "Id");
         }
@@ -60,27 +60,27 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_producto_serie_detalle_ajuste_id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie");
 
             migrationBuilder.DropIndex(
                 name: "IX_producto_serie_id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie");
 
             migrationBuilder.DropColumn(
                 name: "id_detalle_ajuste",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie");
 
             migrationBuilder.DropColumn(
                 name: "FechaVencimiento",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_ajuste");
 
             migrationBuilder.AlterColumn<int>(
                 name: "id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 type: "integer",
                 precision: 32,

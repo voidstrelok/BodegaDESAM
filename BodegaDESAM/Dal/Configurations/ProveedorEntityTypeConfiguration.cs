@@ -63,7 +63,7 @@ namespace BodegaDESAM
                 .HasDefaultValue(true);
 
             builder
-                .ToTable("proveedor", "Bodega_dev");
+                .ToTable("proveedor", "BodegaDESAM");
         }
     }
 }

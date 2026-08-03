@@ -3,19 +3,18 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dev
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5435:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-
+    ports:
+      - 5435:5432
   app:
     build:
       context: .
@@ -24,12 +23,18 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__PostgresDataContext: "Host=db;Database=postgres;Username=postgres;Password=dev;Persist Security Info=True;Search Path=BodegaDESAM"
+      ConnectionStrings__PostgresDataContext: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Search Path=BodegaDESAM;Pooling=true"
+      DataProtection__KeysPath: /var/app/keys
+      ReverseProxy__Enabled: "true"
+      Database__ApplyMigrationsOnStartup: "false"
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - data_protection_keys:/var/app/keys
 
 volumes:
   postgres_data:
+  data_protection_keys:

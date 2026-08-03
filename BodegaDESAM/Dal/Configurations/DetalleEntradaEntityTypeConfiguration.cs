@@ -97,7 +97,7 @@ namespace BodegaDESAM
                 .HasConversion(typeof(DateOnlyValueConverter), typeof(DateOnlyValueComparer));
 
             builder
-                .ToTable("detalle_entrada", "Bodega_dev");
+                .ToTable("detalle_entrada", "BodegaDESAM");
         }
     }
 }

@@ -1,18 +1,12 @@
 @page "/logout"
-@rendermode InteractiveServer
 @layout BodegaDESAM.Components.Layout.AuthLayout
 
-@inject NavigationManager Nav
-@inject Microsoft.AspNetCore.Identity.SignInManager<Microsoft.AspNetCore.Identity.IdentityUser> SignInManager
+<PageTitle>Cerrar sesión</PageTitle>
 
-<PageTitle>Logout</PageTitle>
-
-<div class="text-muted">Cerrando sesión...</div>
-
-@code {
-    protected override async Task OnInitializedAsync()
-    {
-        Nav.NavigateTo("/auth/logout", forceLoad: true);
-        await Task.CompletedTask;
-    }
-}
+<div class="login-card text-center">
+    <p class="text-muted">¿Deseas cerrar la sesión actual?</p>
+    <form method="post" action="/auth/logout" data-enhance="false">
+        <AntiforgeryToken />
+        <button class="btn btn-outline-danger" type="submit">Cerrar sesión</button>
+    </form>
+</div>

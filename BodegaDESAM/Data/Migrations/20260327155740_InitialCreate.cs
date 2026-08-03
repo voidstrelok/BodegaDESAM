@@ -13,11 +13,11 @@ namespace BodegaDESAM.Data.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "Bodega_dev");
+                name: "BodegaDESAM");
 
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "text", nullable: false),
@@ -32,7 +32,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetUsers",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "text", nullable: false),
@@ -58,7 +58,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "bodega",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -76,7 +76,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "categoria_producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false)
@@ -90,7 +90,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "establecimiento",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -104,7 +104,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "marca",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false)
@@ -118,7 +118,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "proveedor",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -138,7 +138,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetRoleClaims",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -153,7 +153,7 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",
                         column: x => x.RoleId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -161,7 +161,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserClaims",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -176,7 +176,7 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_AspNetUserClaims_AspNetUsers_UserId",
                         column: x => x.UserId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -184,7 +184,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserLogins",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     LoginProvider = table.Column<string>(type: "text", nullable: false),
@@ -198,7 +198,7 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_AspNetUserLogins_AspNetUsers_UserId",
                         column: x => x.UserId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -206,7 +206,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserRoles",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "text", nullable: false),
@@ -218,14 +218,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_AspNetUserRoles_AspNetRoles_RoleId",
                         column: x => x.RoleId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_AspNetUserRoles_AspNetUsers_UserId",
                         column: x => x.UserId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -233,7 +233,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserTokens",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "text", nullable: false),
@@ -247,7 +247,7 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_AspNetUserTokens_AspNetUsers_UserId",
                         column: x => x.UserId,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -255,7 +255,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "ubicacion",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false)
@@ -276,14 +276,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_ubicacion_bodega_id_bodega",
                         column: x => x.id_bodega,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "bodega",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -297,14 +297,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_producto_categoria_producto_id_categoria_producto",
                         column: x => x.id_categoria_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "categoria_producto",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "salida",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -322,20 +322,20 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_salida_bodega_id_bodega",
                         column: x => x.id_bodega,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "bodega",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_salida_establecimiento_id_establecimiento",
                         column: x => x.id_establecimiento,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "establecimiento",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "modelo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false)
@@ -349,14 +349,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_modelo_marca_id_marca",
                         column: x => x.id_marca,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "marca",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -374,20 +374,20 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_entrada_bodega_id_bodega",
                         column: x => x.id_bodega,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "bodega",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_entrada_proveedor_id_proveedor",
                         column: x => x.id_proveedor,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "proveedor",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "lote",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", precision: 32, scale: 0, nullable: false)
@@ -404,14 +404,14 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_lote_producto_id_producto",
                         column: x => x.id_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "producto",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -431,44 +431,44 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_detalle_entrada_entrada_id_entrada",
                         column: x => x.id_entrada,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "entrada",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_entrada_lote_id_lote",
                         column: x => x.id_lote,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "lote",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_entrada_marca_id_marca",
                         column: x => x.id_marca,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "marca",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_entrada_modelo_id_modelo",
                         column: x => x.id_modelo,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "modelo",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_entrada_producto_id_producto",
                         column: x => x.id_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "producto",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_entrada_ubicacion_id_ubicacion",
                         column: x => x.id_ubicacion,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "ubicacion",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "detalle_salida",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -487,44 +487,44 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_detalle_salida_lote_id_lote",
                         column: x => x.id_lote,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "lote",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_salida_marca_id_marca",
                         column: x => x.id_marca,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "marca",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_salida_modelo_id_modelo",
                         column: x => x.id_modelo,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "modelo",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_salida_producto_id_producto",
                         column: x => x.id_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "producto",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_salida_salida_id_salida",
                         column: x => x.id_salida,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "salida",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_detalle_salida_ubicacion_id_ubicacion",
                         column: x => x.id_ubicacion,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "ubicacion",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "producto_serie",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", precision: 32, scale: 0, nullable: false)
@@ -540,212 +540,212 @@ namespace BodegaDESAM.Data.Migrations
                     table.ForeignKey(
                         name: "FK_producto_serie_detalle_entrada_id_detalle_entrada",
                         column: x => x.id_detalle_entrada,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "detalle_entrada",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_producto_serie_producto_id_producto",
                         column: x => x.id_producto,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "producto",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "FK_producto_serie_salida_id_salida",
                         column: x => x.id_salida,
-                        principalSchema: "Bodega_dev",
+                        principalSchema: "BodegaDESAM",
                         principalTable: "salida",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetRoleClaims",
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
                 name: "RoleNameIndex",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetRoles",
                 column: "NormalizedName",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUserClaims_UserId",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetUserClaims",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUserLogins_UserId",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetUserLogins",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUserRoles_RoleId",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetUserRoles",
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
                 name: "EmailIndex",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetUsers",
                 column: "NormalizedEmail");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_bodega_codigo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "bodega",
                 column: "codigo",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_entrada");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_lote",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_lote");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_marca",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_marca");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_modelo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_modelo");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_producto");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_entrada_id_ubicacion",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_entrada",
                 column: "id_ubicacion");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_lote",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_lote");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_marca",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_marca");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_modelo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_modelo");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_producto");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_salida",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_salida");
 
             migrationBuilder.CreateIndex(
                 name: "IX_detalle_salida_id_ubicacion",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "detalle_salida",
                 column: "id_ubicacion");
 
             migrationBuilder.CreateIndex(
                 name: "IX_entrada_id_bodega",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "entrada",
                 column: "id_bodega");
 
             migrationBuilder.CreateIndex(
                 name: "IX_entrada_id_proveedor",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "entrada",
                 column: "id_proveedor");
 
             migrationBuilder.CreateIndex(
                 name: "IX_lote_id_producto_codigo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "lote",
                 columns: new[] { "id_producto", "codigo" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_modelo_id_marca_nombre",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "modelo",
                 columns: new[] { "id_marca", "nombre" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_producto_id_categoria_producto",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto",
                 column: "id_categoria_producto");
 
             migrationBuilder.CreateIndex(
                 name: "IX_producto_serie_id_detalle_entrada",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 column: "id_detalle_entrada");
 
             migrationBuilder.CreateIndex(
                 name: "IX_producto_serie_id_producto_serie",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 columns: new[] { "id_producto", "serie" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_producto_serie_id_salida",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "producto_serie",
                 column: "id_salida");
 
             migrationBuilder.CreateIndex(
                 name: "IX_salida_id_bodega",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 column: "id_bodega");
 
             migrationBuilder.CreateIndex(
                 name: "IX_salida_id_establecimiento",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 column: "id_establecimiento");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ubicacion_id_bodega_codigo_completo",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "ubicacion",
                 columns: new[] { "id_bodega", "codigo_completo" },
                 unique: true);
@@ -756,87 +756,87 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetUserClaims",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetUserLogins",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetUserRoles",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "detalle_salida",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "producto_serie",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "detalle_entrada",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "salida",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "entrada",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "lote",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "modelo",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "ubicacion",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "establecimiento",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "proveedor",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "producto",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "marca",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "bodega",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.DropTable(
                 name: "categoria_producto",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
         }
     }
 }

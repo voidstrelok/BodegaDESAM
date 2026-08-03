@@ -100,7 +100,7 @@ namespace BodegaDESAM.Services
             // Obtener modelos
             var modeloIds = skuKeys
                 .Where(e => e.id_modelo.HasValue)
-                .Select(e => e.id_modelo.Value)
+                .Select(e => e.id_modelo!.Value)
                 .Distinct()
                 .ToList();
             var modelos = await db.Modelo

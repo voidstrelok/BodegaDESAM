@@ -15,26 +15,28 @@ public sealed class AuthController : Controller
         _signInManager = signInManager;
     }
 
-    [HttpGet("login")]
+    [HttpPost("login")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(
-        [FromQuery] string email,
-        [FromQuery] string password,
-        [FromQuery] bool rememberMe = false,
-        [FromQuery] string? returnUrl = null)
+        [FromForm] string user,
+        [FromForm] string password,
+        [FromForm] bool rememberMe = false,
+        [FromForm] string? returnUrl = null)
     {
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
             return Redirect("/login");
 
-        var result = await _signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
+        var result = await _signInManager.PasswordSignInAsync(user, password, rememberMe, lockoutOnFailure: true);
         if (!result.Succeeded)
             return Redirect("/login?error=1");
 
         // El dashboard es siempre el punto de entrada después de autenticarse.
-        return Redirect("/dashboard");
+        return LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) ? "/dashboard" : returnUrl);
     }
 
     [Authorize]
-    [HttpGet("logout")]
+    [HttpPost("logout")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await _signInManager.SignOutAsync();

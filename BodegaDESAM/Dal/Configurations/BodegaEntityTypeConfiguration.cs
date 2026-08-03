@@ -41,7 +41,7 @@ namespace BodegaDESAM
                 .HasColumnName("activa")
                 .HasDefaultValue(true);
 
-            builder.ToTable("bodega", "Bodega_dev");
+            builder.ToTable("bodega", "BodegaDESAM");
         }
     }
 }

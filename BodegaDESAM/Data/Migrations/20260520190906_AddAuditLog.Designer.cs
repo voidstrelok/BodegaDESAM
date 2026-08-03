@@ -20,7 +20,7 @@ namespace BodegaDESAM.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("Bodega_dev")
+                .HasDefaultSchema("BodegaDESAM")
                 .HasAnnotation("ProductVersion", "8.0.23")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -66,7 +66,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuditLog", "Bodega_dev");
+                    b.ToTable("AuditLog", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Bodega", b =>
@@ -113,7 +113,7 @@ namespace BodegaDESAM.Data.Migrations
                     b.HasIndex("Codigo")
                         .IsUnique();
 
-                    b.ToTable("bodega", "Bodega_dev");
+                    b.ToTable("bodega", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.CategoriaProducto", b =>
@@ -134,7 +134,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("categoria_producto", "Bodega_dev");
+                    b.ToTable("categoria_producto", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.DetalleEntrada", b =>
@@ -200,7 +200,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("id_ubicacion");
 
-                    b.ToTable("detalle_entrada", "Bodega_dev");
+                    b.ToTable("detalle_entrada", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.DetalleSalida", b =>
@@ -262,7 +262,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("id_ubicacion");
 
-                    b.ToTable("detalle_salida", "Bodega_dev");
+                    b.ToTable("detalle_salida", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Entrada", b =>
@@ -308,7 +308,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("id_proveedor");
 
-                    b.ToTable("entrada", "Bodega_dev");
+                    b.ToTable("entrada", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Establecimiento", b =>
@@ -328,7 +328,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("establecimiento", "Bodega_dev");
+                    b.ToTable("establecimiento", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Lote", b =>
@@ -370,7 +370,7 @@ namespace BodegaDESAM.Data.Migrations
                     b.HasIndex("id_producto", "Codigo")
                         .IsUnique();
 
-                    b.ToTable("lote", "Bodega_dev");
+                    b.ToTable("lote", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Marca", b =>
@@ -391,7 +391,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("marca", "Bodega_dev");
+                    b.ToTable("marca", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Modelo", b =>
@@ -420,7 +420,7 @@ namespace BodegaDESAM.Data.Migrations
                     b.HasIndex("id_marca", "Nombre")
                         .IsUnique();
 
-                    b.ToTable("modelo", "Bodega_dev");
+                    b.ToTable("modelo", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Producto", b =>
@@ -448,7 +448,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("id_categoria_producto");
 
-                    b.ToTable("producto", "Bodega_dev");
+                    b.ToTable("producto", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.ProductoSerie", b =>
@@ -491,7 +491,7 @@ namespace BodegaDESAM.Data.Migrations
                     b.HasIndex("id_producto", "Serie")
                         .IsUnique();
 
-                    b.ToTable("producto_serie", "Bodega_dev");
+                    b.ToTable("producto_serie", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Proveedor", b =>
@@ -543,7 +543,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("proveedor", "Bodega_dev");
+                    b.ToTable("proveedor", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Salida", b =>
@@ -587,7 +587,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("id_establecimiento");
 
-                    b.ToTable("salida", "Bodega_dev");
+                    b.ToTable("salida", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.Ubicacion", b =>
@@ -652,7 +652,7 @@ namespace BodegaDESAM.Data.Migrations
                     b.HasIndex("id_bodega", "CodigoCompleto")
                         .IsUnique();
 
-                    b.ToTable("ubicacion", "Bodega_dev");
+                    b.ToTable("ubicacion", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -678,7 +678,7 @@ namespace BodegaDESAM.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("AspNetRoles", "Bodega_dev");
+                    b.ToTable("AspNetRoles", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -703,7 +703,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetRoleClaims", "Bodega_dev");
+                    b.ToTable("AspNetRoleClaims", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUser", b =>
@@ -767,7 +767,7 @@ namespace BodegaDESAM.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("AspNetUsers", "Bodega_dev");
+                    b.ToTable("AspNetUsers", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -792,7 +792,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserClaims", "Bodega_dev");
+                    b.ToTable("AspNetUserClaims", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
@@ -814,7 +814,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserLogins", "Bodega_dev");
+                    b.ToTable("AspNetUserLogins", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
@@ -829,7 +829,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetUserRoles", "Bodega_dev");
+                    b.ToTable("AspNetUserRoles", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
@@ -848,7 +848,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("AspNetUserTokens", "Bodega_dev");
+                    b.ToTable("AspNetUserTokens", "BodegaDESAM");
                 });
 
             modelBuilder.Entity("BodegaDESAM.DetalleEntrada", b =>

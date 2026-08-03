@@ -14,7 +14,7 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.AlterColumn<string>(
                 name: "solicitante",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 type: "character varying",
                 maxLength: 100,
@@ -25,7 +25,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.AlterColumn<string>(
                 name: "observacion",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 type: "character varying",
                 maxLength: 200,
@@ -36,7 +36,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.CreateTable(
                 name: "AuditLog",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -60,11 +60,11 @@ namespace BodegaDESAM.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AuditLog",
-                schema: "Bodega_dev");
+                schema: "BodegaDESAM");
 
             migrationBuilder.AlterColumn<string>(
                 name: "solicitante",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 type: "character varying",
                 maxLength: 100,
@@ -77,7 +77,7 @@ namespace BodegaDESAM.Data.Migrations
 
             migrationBuilder.AlterColumn<string>(
                 name: "observacion",
-                schema: "Bodega_dev",
+                schema: "BodegaDESAM",
                 table: "salida",
                 type: "character varying",
                 maxLength: 200,

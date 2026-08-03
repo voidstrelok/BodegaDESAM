@@ -45,7 +45,7 @@ namespace BodegaDESAM
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.HasDefaultSchema("Bodega_dev");
+            modelBuilder.HasDefaultSchema("BodegaDESAM");
 
             modelBuilder.ApplyConfiguration(new ProveedorEntityTypeConfiguration());
             modelBuilder.ApplyConfiguration(new EntradaEntityTypeConfiguration());
@@ -72,7 +72,7 @@ namespace BodegaDESAM
 
             modelBuilder.Entity<AjusteInventario>(e =>
             {
-                e.ToTable("ajuste_inventario", "Bodega_dev");
+                e.ToTable("ajuste_inventario", "BodegaDESAM");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).UseIdentityByDefaultColumn();
                 e.Property(x => x.Fecha).HasColumnType("date").HasConversion(typeof(DateOnlyValueConverter), typeof(DateOnlyValueComparer));
@@ -81,7 +81,7 @@ namespace BodegaDESAM
 
             modelBuilder.Entity<DetalleAjuste>(e =>
             {
-                e.ToTable("detalle_ajuste", "Bodega_dev");
+                e.ToTable("detalle_ajuste", "BodegaDESAM");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).UseIdentityByDefaultColumn();
                 e.Property(x => x.TipoAjuste).HasConversion<string>();

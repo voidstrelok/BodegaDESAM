@@ -63,7 +63,7 @@ namespace BodegaDESAM
                 .HasColumnType("character varying")
                 .HasMaxLength(200);
 
-            builder.ToTable("ubicacion", "Bodega_dev");
+            builder.ToTable("ubicacion", "BodegaDESAM");
         }
     }
 }
