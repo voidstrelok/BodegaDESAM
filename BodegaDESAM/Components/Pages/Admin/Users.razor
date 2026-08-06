@@ -42,9 +42,14 @@
                 <ValidationMessage For="() => create.Nombre" />
             </div>
             <div class="col-12 col-md-3">
-                <label class="form-label">Apellido</label>
+                <label class="form-label">Apellido paterno</label>
                 <InputText class="form-control" @bind-Value="create.Apellido" />
                 <ValidationMessage For="() => create.Apellido" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Apellido materno</label>
+                <InputText class="form-control" @bind-Value="create.ApellidoMaterno" />
+                <ValidationMessage For="() => create.ApellidoMaterno" />
             </div>
             <div class="col-12 col-md-4">
                 <label class="form-label">Email</label>
@@ -97,9 +102,9 @@ else
                             @if (!u.IsEditing)
                             {
                                 <div class="fw-semibold">@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</div>
-                                @if (!string.IsNullOrWhiteSpace(u.Nombre) || !string.IsNullOrWhiteSpace(u.Apellido))
+                                @if (!string.IsNullOrWhiteSpace(u.Nombre) || !string.IsNullOrWhiteSpace(u.Apellido) || !string.IsNullOrWhiteSpace(u.ApellidoMaterno))
                                 {
-                                    <div class="text-muted small">@($"{u.Nombre} {u.Apellido}".Trim())</div>
+                                    <div class="text-muted small">@($"{u.Nombre} {u.Apellido} {u.ApellidoMaterno}".Trim())</div>
                                 }
                                 <div class="text-muted small">@u.Id</div>
                             }
@@ -113,7 +118,10 @@ else
                                         <InputText class="form-control form-control-sm" @bind-Value="u.Nombre" placeholder="Nombre" />
                                     </div>
                                     <div class="col-6">
-                                        <InputText class="form-control form-control-sm" @bind-Value="u.Apellido" placeholder="Apellido" />
+                                        <InputText class="form-control form-control-sm" @bind-Value="u.Apellido" placeholder="Apellido paterno" />
+                                    </div>
+                                    <div class="col-6">
+                                        <InputText class="form-control form-control-sm" @bind-Value="u.ApellidoMaterno" placeholder="Apellido materno" />
                                     </div>
                                     <div class="col-12">
                                         <div class="text-muted small">@u.Id</div>
@@ -199,6 +207,7 @@ else
             var claims = await UserManager.GetClaimsAsync(u);
             var nombre = claims.FirstOrDefault(c => c.Type == "given_name")?.Value;
             var apellido = claims.FirstOrDefault(c => c.Type == "family_name")?.Value;
+            var apellidoMaterno = claims.FirstOrDefault(c => c.Type == "maternal_family_name")?.Value;
             list.Add(new UserWithRolesVm
             {
                 Id = u.Id,
@@ -206,6 +215,7 @@ else
                 Email = u.Email,
                 Nombre = nombre,
                 Apellido = apellido,
+                ApellidoMaterno = apellidoMaterno,
                 Roles = roles
             });
 
@@ -215,7 +225,7 @@ else
         users = list;
         original = users.ToDictionary(
             u => u.Id,
-            u => new UserWithRolesVm { Id = u.Id, UserName = u.UserName, Email = u.Email, Nombre = u.Nombre, Apellido = u.Apellido, Roles = u.Roles.ToList() });
+            u => new UserWithRolesVm { Id = u.Id, UserName = u.UserName, Email = u.Email, Nombre = u.Nombre, Apellido = u.Apellido, ApellidoMaterno = u.ApellidoMaterno, Roles = u.Roles.ToList() });
     }
 
     void EditUser(string userId)
@@ -242,6 +252,7 @@ else
             u.Email = o.Email;
             u.Nombre = o.Nombre;
             u.Apellido = o.Apellido;
+            u.ApellidoMaterno = o.ApellidoMaterno;
         }
 
         u.IsEditing = false;
@@ -286,6 +297,7 @@ else
             var claims = await UserManager.GetClaimsAsync(user);
             await UpsertClaimAsync(user, claims, "given_name", vm.Nombre?.Trim());
             await UpsertClaimAsync(user, claims, "family_name", vm.Apellido?.Trim());
+            await UpsertClaimAsync(user, claims, "maternal_family_name", vm.ApellidoMaterno?.Trim());
 
             success = "Usuario actualizado.";
             await LoadAsync();
@@ -372,16 +384,20 @@ else
 
             var nombre = create.Nombre?.Trim();
             var apellido = create.Apellido?.Trim();
+            var apellidoMaterno = create.ApellidoMaterno?.Trim();
             if (!string.IsNullOrWhiteSpace(nombre))
                 await UserManager.AddClaimAsync(user, new Claim("given_name", nombre));
             if (!string.IsNullOrWhiteSpace(apellido))
                 await UserManager.AddClaimAsync(user, new Claim("family_name", apellido));
+            if (!string.IsNullOrWhiteSpace(apellidoMaterno))
+                await UserManager.AddClaimAsync(user, new Claim("maternal_family_name", apellidoMaterno));
 
             success = "Usuario creado.";
             create.Email = string.Empty;
             create.Password = string.Empty;
             create.Nombre = string.Empty;
             create.Apellido = string.Empty;
+            create.ApellidoMaterno = string.Empty;
             await LoadAsync();
         }
         finally

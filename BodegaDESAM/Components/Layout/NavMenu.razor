@@ -199,7 +199,10 @@
     private int totalAlertas;
     private bool menuAbierto;
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        AlertaService.AlertasActualizadas -= ActualizarTotalAlertasAsync;
+    }
 
     private void AlternarMenu() => menuAbierto = !menuAbierto;
 
@@ -207,6 +210,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AlertaService.AlertasActualizadas += ActualizarTotalAlertasAsync;
+
         try
         {
             var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -215,6 +220,16 @@
                 var alertas = await AlertaService.GetAlertasActivasAsync();
                 totalAlertas = alertas.Count;
             }
+        }
+        catch { }
+    }
+
+    private async Task ActualizarTotalAlertasAsync()
+    {
+        try
+        {
+            totalAlertas = (await AlertaService.GetAlertasActivasAsync()).Count;
+            await InvokeAsync(StateHasChanged);
         }
         catch { }
     }

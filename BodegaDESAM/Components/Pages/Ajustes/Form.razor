@@ -11,6 +11,7 @@
 @inject ModeloService ModeloService
 @inject LoteService LoteService
 @inject InventarioService InventarioService
+@inject AlertaService AlertaService
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
@@ -255,6 +256,7 @@
         try
         {
             await AjusteService.CreateAsync(ajuste, ObtenerSeriesPorItem());
+            await AlertaService.NotificarActualizacionAsync();
             Nav.NavigateTo("/ajustes");
         }
         catch (Exception ex)

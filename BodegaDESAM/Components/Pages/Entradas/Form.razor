@@ -15,6 +15,7 @@
 @inject ModeloService ModeloService
 @inject ProductoSerieService ProductoSerieService
 @inject LoteService LoteService
+@inject AlertaService AlertaService
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -306,6 +307,8 @@
                     ErrorGuardar = "La entrada no existe o fue eliminada.";
                 }
             }
+
+            await AlertaService.NotificarActualizacionAsync();
 
             Nav.NavigateTo("/entradas");
         }

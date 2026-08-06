@@ -7,6 +7,7 @@ public sealed class UserWithRolesVm
     public string? Email { get; set; }
     public string? Nombre { get; set; }
     public string? Apellido { get; set; }
+    public string? ApellidoMaterno { get; set; }
     public IList<string> Roles { get; init; } = new List<string>();
 
     public bool IsEditing { get; set; }

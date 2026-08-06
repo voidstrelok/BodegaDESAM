@@ -13,6 +13,7 @@
 @inject BodegaService BodegaService
 @inject InventarioService InventarioService
 @inject ProductoSerieService ProductoSerieService
+@inject AlertaService AlertaService
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
@@ -252,7 +253,9 @@
                     continue;
 
                 var series = seriesSalida
-                    .Where(x => x.id_producto == d.id_producto && x.id_detalle_entrada == d.id_detalle_entrada)
+                    .Where(x => x.id_producto == d.id_producto
+                        && x.id_detalle_entrada == d.id_detalle_entrada
+                        && x.id_detalle_ajuste == d.id_detalle_ajuste_origen)
                     .Select(x => x.Serie)
                     .ToList();
 
@@ -274,8 +277,10 @@
         if (d.id_producto <= 0 || d.id_marca <= 0)
             return;
 
-        // Filtrar series por SKU completo (Producto + Marca + Modelo)
-        var disponibles = await ProductoSerieService.GetDisponiblesPorSkuAsync(d.id_producto, d.id_marca, d.id_modelo, d.id_detalle_entrada);
+        var disponibles = await ProductoSerieService.GetDisponiblesPorSkuAsync(
+            d.id_producto,
+            d.id_detalle_entrada,
+            d.id_detalle_ajuste_origen);
 
         if (Id != null && SeriesSeleccionadasPorDetalle.TryGetValue(d, out var selExistentes) && selExistentes.Count > 0)
         {
@@ -291,9 +296,6 @@
 
     private string GetSkuKeyForDetalle(DetalleSalida d)
     {
-        if (!d.id_detalle_entrada.HasValue || d.id_detalle_entrada <= 0)
-            return string.Empty;
-
         if (d.id_detalle_entrada.HasValue && d.id_detalle_entrada > 0)
             return $"E{d.id_detalle_entrada.Value}";
         return d.id_detalle_ajuste_origen.HasValue && d.id_detalle_ajuste_origen > 0 ? $"A{d.id_detalle_ajuste_origen.Value}" : string.Empty;
@@ -344,8 +346,8 @@
                 d.id_marca    = sku.IdMarca;
                 d.id_modelo   = sku.IdModelo;
                 d.id_lote     = sku.IdLote;
-                d.id_detalle_entrada = sku.IdDetalleEntrada;
-                d.id_detalle_ajuste_origen = sku.IdDetalleAjuste;
+                d.id_detalle_entrada = sku.IdDetalleEntrada > 0 ? sku.IdDetalleEntrada : null;
+                d.id_detalle_ajuste_origen = sku.IdDetalleAjuste is > 0 ? sku.IdDetalleAjuste : null;
             }
         }
 
@@ -412,9 +414,11 @@
 
         foreach (var d in salida.DetalleSalida)
         {
-            if (d.id_producto <= 0 || d.id_marca <= 0 || d.id_detalle_entrada <= 0)
+            var tieneOrigenEntrada = d.id_detalle_entrada is > 0;
+            var tieneOrigenAjuste = d.id_detalle_ajuste_origen is > 0;
+            if (d.id_producto <= 0 || d.id_marca <= 0 || tieneOrigenEntrada == tieneOrigenAjuste)
             {
-                ErrorGuardar = "Debe seleccionar el producto y su entrada de origen en todas las filas del detalle.";
+                ErrorGuardar = "Debe seleccionar exactamente un origen de stock para cada producto.";
                 return;
             }
 
@@ -455,7 +459,12 @@
                 foreach (var d in salida.DetalleSalida)
                 {
                     if (SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel) && sel.Count > 0)
-                        await ProductoSerieService.AsociarASalidaAsync(salida.Id, d.id_producto, sel, d.id_detalle_entrada);
+                        await ProductoSerieService.AsociarASalidaAsync(
+                            salida.Id,
+                            d.id_producto,
+                            sel,
+                            d.id_detalle_entrada,
+                            d.id_detalle_ajuste_origen);
                 }
             }
             else
@@ -465,12 +474,15 @@
                     .Select(d => new SalidaSerieSeleccion(
                         d.id_producto,
                         d.id_detalle_entrada,
+                        d.id_detalle_ajuste_origen,
                         SeriesSeleccionadasPorDetalle.TryGetValue(d, out var sel)
                             ? sel
                             : Array.Empty<string>()))
                     .ToList();
                 await ProductoSerieService.SincronizarSalidaAsync(salida.Id, seleccion);
             }
+
+            await AlertaService.NotificarActualizacionAsync();
 
             Nav.NavigateTo("/salidas");
         }

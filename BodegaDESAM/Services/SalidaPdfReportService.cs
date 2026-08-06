@@ -204,17 +204,17 @@ namespace BodegaDESAM.Services
                                     c.Item().Text(role).FontSize(8.5f).Bold().FontColor(Colors.BlueGrey.Darken1);
                                     c.Item().PaddingTop(36).BorderBottom(1).BorderColor(CPrimary);
                                     c.Item().PaddingTop(4)
-                                            .Text(string.IsNullOrWhiteSpace(nombre) ? "—" : nombre)
+                                            .Text("")
                                             .FontSize(9).Bold();
                                     c.Item().PaddingTop(2)
-                                            .Text("Firma / Fecha")
+                                            .Text("")
                                             .FontSize(8).FontColor(Colors.BlueGrey.Darken1);
                                 });
                             }
 
-                            SigBox(row, "SOLICITA", salida.Solicitante);
+                            SigBox(row, "SOLICITA", "");
                             row.ConstantItem(50);
-                            SigBox(row, "ENTREGA", nombreQuienEntrega);
+                            SigBox(row, "ENTREGA", "");
                         });
                     });
 

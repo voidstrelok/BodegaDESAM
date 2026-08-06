@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manual Operativo — Bodega DESAM</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 17mm; }
+    :root { --navy:#12324a; --blue:#176b9c; --sky:#eaf5fb; --teal:#087b73; --green:#287a4d; --orange:#b86118; --red:#b63838; --ink:#1f2933; --muted:#5d6b78; --line:#d8e1e8; --soft:#f6f9fb; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); font:10.2pt/1.48 "Segoe UI", Arial, sans-serif; }
+    h1,h2,h3 { color:var(--navy); line-height:1.16; margin:0 0 9px; }
+    h1 { font-size:29pt; letter-spacing:-.6px; } h2 { font-size:18pt; margin-top:0; } h3 { font-size:12pt; margin-top:14px; }
+    p { margin:0 0 8px; } ul,ol { margin:5px 0 10px 20px; padding:0; } li { margin:3px 0; }
+    .cover { min-height:258mm; display:flex; flex-direction:column; padding:15mm 10mm 10mm; background:linear-gradient(145deg, #f4fbfe 0%, #fff 58%, #eaf4f1 100%); }
+    .brand { color:var(--blue); font-weight:700; font-size:13pt; letter-spacing:.5px; text-transform:uppercase; }
+    .cover-main { margin-top:43mm; max-width:580px; } .cover-main p { font-size:14pt; color:var(--muted); max-width:500px; }
+    .cover-card { margin-top:27mm; width:100%; border-left:6px solid var(--teal); background:white; padding:15px 18px; box-shadow:0 3px 13px #173a4a14; }
+    .cover-footer { margin-top:auto; display:flex; justify-content:space-between; color:var(--muted); font-size:9pt; border-top:1px solid var(--line); padding-top:10px; }
+    .page { break-before:page; page-break-before:always; }
+    .section-label { text-transform:uppercase; color:var(--teal); font-size:8.5pt; letter-spacing:1.1px; font-weight:700; margin-bottom:5px; }
+    .lead { color:var(--muted); font-size:11.3pt; margin-bottom:16px; }
+    .callout { border-left:4px solid var(--blue); background:var(--sky); padding:10px 12px; margin:12px 0; }
+    .warning { border-left-color:var(--orange); background:#fff7ed; } .success { border-left-color:var(--green); background:#eff9f2; }
+    .steps { counter-reset:step; list-style:none; margin-left:0; } .steps li { position:relative; padding:6px 0 6px 32px; }
+    .steps li:before { counter-increment:step; content:counter(step); position:absolute; left:0; top:5px; width:22px; height:22px; border-radius:50%; background:var(--blue); color:white; text-align:center; line-height:22px; font-weight:700; font-size:9pt; }
+    table { border-collapse:collapse; width:100%; margin:8px 0 13px; font-size:9.1pt; } th { background:var(--navy); color:#fff; text-align:left; padding:7px 8px; } td { padding:7px 8px; vertical-align:top; border:1px solid var(--line); } tr:nth-child(even) td { background:var(--soft); }
+    .toc td:first-child { width:42px; color:var(--blue); font-weight:700; border-left:4px solid var(--blue); } .toc td { padding:9px 10px; }
+    .flow { display:flex; align-items:stretch; gap:6px; margin:13px 0 16px; } .flow .node { flex:1; text-align:center; border:1px solid var(--line); border-radius:5px; padding:10px 4px; background:var(--soft); font-size:8.7pt; font-weight:700; color:var(--navy); } .flow .node strong { display:block; color:var(--teal); font-size:8pt; margin-bottom:4px; text-transform:uppercase; } .flow .arrow { align-self:center; color:var(--blue); font-size:18pt; font-weight:700; }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:13px; } .panel { border:1px solid var(--line); border-radius:5px; padding:11px; background:#fff; } .panel h3 { margin-top:0; }
+    .field { color:var(--navy); font-weight:700; } .small { font-size:8.8pt; color:var(--muted); }
+    .badge { display:inline-block; font-size:8pt; border-radius:10px; padding:2px 7px; color:white; background:var(--blue); font-weight:700; } .badge.green { background:var(--green); } .badge.orange { background:var(--orange); } .badge.red { background:var(--red); }
+    .checklist { list-style:none; margin-left:0; } .checklist li { padding-left:22px; position:relative; } .checklist li:before { content:"✓"; position:absolute; left:0; color:var(--green); font-weight:800; }
+    .keep { break-inside:avoid; page-break-inside:avoid; }
+    .footer { color:var(--muted); font-size:8pt; margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+    .tight li { margin:2px 0; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="brand">Sistema Bodega DESAM</div>
+    <div class="cover-main">
+      <h1>Manual operativo<br>y flujo de datos</h1>
+      <p>Guía para registrar, controlar y consultar las existencias de bodega con trazabilidad desde la recepción hasta el despacho.</p>
+    </div>
+    <div class="cover-card">
+      <strong>Alcance</strong><br>
+      Uso general y evaluación inicial del sistema. Explica inicio de sesión, catálogos, entradas, salidas, ajustes, inventario y dashboard.
+    </div>
+    <div class="cover-footer"><span>Versión 1.0</span><span>03 de agosto de 2026</span><span>Uso interno</span></div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">Orientación</div><h2>Cómo se organiza la información</h2>
+    <p class="lead">El sistema no guarda solo un total: conserva el origen de cada existencia para permitir su seguimiento.</p>
+    <div class="flow"><div class="node"><strong>1. Catálogos</strong>Definen qué se puede registrar</div><div class="arrow">→</div><div class="node"><strong>2. Entrada</strong>Incorpora stock y origen</div><div class="arrow">→</div><div class="node"><strong>3. Salida / ajuste</strong>Consume o corrige stock</div><div class="arrow">→</div><div class="node"><strong>4. Inventario</strong>Consolida y permite consultar</div></div>
+    <h3>Principio de trazabilidad</h3>
+    <p>Cada detalle de una entrada identifica <span class="field">producto + marca + modelo</span> y puede incluir <span class="field">lote, vencimiento y series</span>. Al despachar o disminuir por ajuste se selecciona el origen disponible, por lo que el sistema puede enlazar el movimiento con la recepción o ajuste que lo abasteció.</p>
+    <table>
+      <thead><tr><th>Dato</th><th>Para qué se usa</th><th>Dónde se informa</th></tr></thead>
+      <tbody><tr><td>Producto y categoría</td><td>Identifican el artículo y agrupan el inventario.</td><td>Catálogos y detalle de entrada/ajuste.</td></tr><tr><td>Marca y modelo</td><td>Distinguen variantes físicas del mismo producto.</td><td>Detalle de entrada, ajuste y selección de origen en salida.</td></tr><tr><td>Lote y vencimiento</td><td>Apoyan control sanitario y priorización por vencimiento.</td><td>Entrada; también en aumentos de ajuste.</td></tr><tr><td>Número de serie</td><td>Individualiza unidades trazables.</td><td>Entrada o aumento de ajuste; se selecciona al despachar.</td></tr><tr><td>Documento/origen</td><td>Relaciona existencia con proveedor, recepción o ajuste.</td><td>Entrada; se consulta al crear una salida o disminución.</td></tr></tbody>
+    </table>
+    <div class="callout success"><strong>Orden recomendado de trabajo:</strong> cree primero las categorías, productos, marcas, modelos y proveedores. Después registre las entradas; recién entonces habrá stock disponible para salidas o disminuciones.</div>
+    <div class="footer">Manual operativo Bodega DESAM · Alcance funcional implementado en la aplicación</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">01 · Acceso</div><h2>Inicio y cierre de sesión</h2>
+    <p class="lead">El acceso correcto lleva siempre al Dashboard, que resume el estado de la bodega.</p>
+    <ol class="steps"><li>Abra la dirección del sistema. Aparecerá la pantalla <strong>Iniciar sesión</strong>.</li><li>Ingrese su <strong>Nombre de Usuario</strong> y <strong>Contraseña</strong>.</li><li>Si el equipo es personal y autorizado, puede marcar <strong>Recordarme</strong>.</li><li>Presione <strong>Ingresar</strong>. Si las credenciales son válidas, se abre el <strong>Dashboard</strong>.</li></ol>
+    <div class="callout warning"><strong>Si aparece “Credenciales inválidas”:</strong> revise usuario y contraseña, incluyendo mayúsculas/minúsculas si corresponde. Si persiste, solicite ayuda al administrador; este manual no cubre la gestión de cuentas.</div>
+    <h3>Permisos visibles en la operación</h3>
+    <table><thead><tr><th>Perfil</th><th>Acceso operativo</th></tr></thead><tbody><tr><td>Lectura</td><td>Consulta Dashboard, Inventario y el listado/detalle de movimientos.</td></tr><tr><td>Bodega</td><td>Además puede mantener catálogos y crear, editar o eliminar entradas, salidas y ajustes.</td></tr><tr><td>Administrador</td><td>Cuenta con las mismas funciones operativas de Bodega y funciones administrativas no abordadas aquí.</td></tr></tbody></table>
+    <h3>Cerrar sesión</h3><p>En el menú lateral seleccione <strong>Cerrar sesión</strong>. Hágalo al terminar su jornada o al dejar un equipo compartido.</p>
+    <div class="footer">01 · Inicio de sesión</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">02 · Catálogos</div><h2>Preparar los datos maestros</h2>
+    <p class="lead">Los catálogos son la base de los movimientos. Manténgalos consistentes y evite crear nombres casi iguales para el mismo elemento.</p>
+    <table><thead><tr><th>Catálogo</th><th>Campos y regla</th><th>Uso posterior</th></tr></thead><tbody><tr><td>Categorías</td><td>Nombre obligatorio, entre 2 y 50 caracteres.</td><td>Clasifica cada producto.</td></tr><tr><td>Productos</td><td>Nombre y categoría obligatorios. Stock mínimo opcional, igual o mayor a cero.</td><td>Se selecciona en entradas y aumentos de ajuste.</td></tr><tr><td>Marcas</td><td>Nombre obligatorio, entre 2 y 50 caracteres.</td><td>Obligatoria en todo detalle de stock.</td></tr><tr><td>Modelos</td><td>Marca y nombre obligatorios.</td><td>Opcional en los detalles; se filtra según la marca.</td></tr><tr><td>Proveedores</td><td>Nombre obligatorio. RUT, teléfono, correo y dirección son complementarios.</td><td>Obligatorio para registrar una entrada.</td></tr></tbody></table>
+    <div class="two"><div class="panel"><h3>Secuencia sugerida</h3><ol class="tight"><li>Categorías</li><li>Productos</li><li>Marcas</li><li>Modelos de cada marca</li><li>Proveedores</li></ol></div><div class="panel"><h3>Buenas prácticas de nombres</h3><ul class="tight"><li>Use un nombre institucional y uniforme.</li><li>No duplique abreviaturas: “Alcohol gel” y “Alcohol Gel 1L”.</li><li>Registre el modelo solo si permite distinguir una variante real.</li></ul></div></div>
+    <div class="callout"><strong>Navegación:</strong> abra el menú lateral y, dentro de <strong>Catálogos</strong>, seleccione el catálogo que desea mantener. Cada página muestra el listado y el botón para crear un registro nuevo.</div>
+    <div class="footer">02 · Catálogos</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">02.1 · Catálogos</div><h2>Crear categorías, productos, marcas y modelos</h2>
+    <h3>Categoría</h3><ol class="steps"><li>Seleccione <strong>Catálogos → Categorías</strong> y pulse <strong>Nueva categoría</strong>.</li><li>Ingrese el nombre y presione <strong>Guardar</strong>.</li></ol>
+    <h3>Producto</h3><ol class="steps"><li>Seleccione <strong>Catálogos → Productos → Nuevo producto</strong>.</li><li>Ingrese el nombre y elija una categoría.</li><li>Defina <strong>Stock mínimo</strong> si desea que el Dashboard avise cuando las existencias del producto alcancen o bajen de ese umbral.</li><li>Guarde. El producto estará disponible para las entradas y los aumentos de ajuste.</li></ol>
+    <h3>Marca y modelo</h3><ol class="steps"><li>En <strong>Catálogos → Marcas</strong>, cree la marca por su nombre.</li><li>Luego abra <strong>Catálogos → Modelos → Nuevo modelo</strong>.</li><li>Seleccione la marca creada e ingrese el nombre del modelo.</li><li>Al registrar una entrada o ajuste, el selector de modelos mostrará solo los pertenecientes a la marca elegida.</li></ol>
+    <div class="callout warning"><strong>Importante:</strong> producto y marca son obligatorios en el stock. El modelo es opcional. Si cambia la marca durante un ingreso, vuelva a verificar el modelo, porque debe pertenecer a la nueva marca.</div>
+    <h3>Edición y eliminación</h3><p>Desde cada listado puede abrir <strong>Editar</strong> o eliminar un elemento. Antes de eliminar, confirme que no sea necesario para movimientos ya registrados. Si el sistema informa una restricción, mantenga el registro o corrija primero las dependencias.</p>
+    <div class="footer">02.1 · Creación de catálogos</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">02.2 · Catálogos</div><h2>Crear proveedores</h2>
+    <p class="lead">El proveedor es obligatorio en cada entrada y permite identificar el origen comercial de una recepción.</p>
+    <ol class="steps"><li>Abra <strong>Catálogos → Proveedores</strong>.</li><li>Pulse <strong>Nuevo proveedor</strong>.</li><li>Complete <strong>Nombre</strong> (obligatorio). Agregue RUT, teléfono, correo y dirección cuando estén disponibles.</li><li>Revise el formato del RUT y del correo; el sistema valida ambos si se informan.</li><li>Presione <strong>Guardar</strong>.</li></ol>
+    <table><thead><tr><th>Campo</th><th>Recomendación</th></tr></thead><tbody><tr><td>RUT</td><td>Use formato chileno, por ejemplo <strong>11.111.111-1</strong>. Es opcional, pero útil para evitar duplicados.</td></tr><tr><td>Nombre</td><td>Use la razón social o nombre con que se identifica la factura/guía.</td></tr><tr><td>Teléfono y correo</td><td>Permiten resolver diferencias de recepción o solicitar reposición.</td></tr><tr><td>Dirección</td><td>Puede ser útil para respaldo documental.</td></tr></tbody></table>
+    <div class="callout success"><strong>Antes de registrar una recepción:</strong> asegúrese de que exista el proveedor y todos los productos/marcas que vienen en el documento. Así podrá completar la entrada sin interrumpir el flujo.</div>
+    <div class="footer">02.2 · Proveedores</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">03 · Movimientos</div><h2>Registrar una entrada</h2>
+    <p class="lead">Una entrada incorpora existencias a la bodega y crea la base de trazabilidad que se utilizará en las salidas.</p>
+    <ol class="steps"><li>Abra <strong>Movimientos → Entradas</strong> y presione <strong>Nueva entrada</strong>.</li><li>Ingrese fecha, proveedor, N.º de documento y observaciones. La bodega principal se asigna por defecto y se muestra como dato informativo.</li><li>En <strong>Detalle de productos</strong>, pulse <strong>Agregar producto</strong> por cada combinación que recibe.</li><li>Seleccione producto, marca y, si aplica, modelo. Indique cantidad.</li><li>Complete lote, vencimiento y números de serie cuando correspondan.</li><li>Revise el detalle y presione <strong>Guardar</strong>.</li></ol>
+    <h3>Qué se registra en cada fila</h3>
+    <table><thead><tr><th>Campo</th><th>Regla de uso</th></tr></thead><tbody><tr><td>Producto / Marca</td><td>Obligatorios. Forman parte del identificador del stock.</td></tr><tr><td>Modelo</td><td>Opcional; se filtra de acuerdo con la marca seleccionada.</td></tr><tr><td>Lote</td><td>Opcional. Si se escribe, el sistema lo asocia al producto y lo reutiliza cuando ya existe ese código.</td></tr><tr><td>Fecha de vencimiento</td><td>Opcional, pero recomendable para productos perecibles o regulados.</td></tr><tr><td>Serie</td><td>Opcional. Una serie por línea; si se informan, deben ser exactamente tantas como la cantidad y no pueden repetirse dentro de la fila.</td></tr></tbody></table>
+    <div class="callout warning"><strong>Control previo:</strong> una entrada debe tener al menos una fila de detalle. El N.º de documento es obligatorio y conviene transcribirlo tal como aparece en la factura o guía.</div>
+    <div class="footer">03 · Entradas</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">03.1 · Trazabilidad</div><h2>Qué ocurre al guardar una entrada</h2>
+    <div class="flow"><div class="node"><strong>Cabecera</strong>Proveedor · fecha · documento</div><div class="arrow">+</div><div class="node"><strong>Detalle</strong>Producto · marca · modelo · cantidad</div><div class="arrow">+</div><div class="node"><strong>Rastreo</strong>Lote · vencimiento · series</div><div class="arrow">→</div><div class="node"><strong>Disponible</strong>Origen para salida o ajuste</div></div>
+    <p>La entrada queda identificada por un número interno, por ejemplo <strong>Entrada #25</strong>. Desde el listado puede abrir <strong>Ver detalle</strong>, editar, eliminar o descargar su comprobante mediante el ícono PDF.</p>
+    <h3>Edición y eliminación de entradas</h3>
+    <ul><li>La cabecera puede modificarse desde <strong>Editar</strong>.</li><li>Cuando una entrada ya abastece una o más salidas, su <strong>detalle y bodega quedan bloqueados</strong> para evitar romper la trazabilidad; aún se preserva la consulta del movimiento.</li><li>No se puede eliminar una entrada si alguno de sus productos tiene salidas asociadas.</li></ul>
+    <h3>Ejemplo operativo</h3><div class="panel"><p><strong>Factura 5821 de Proveedor Salud Ltda.</strong></p><p>Se reciben 10 unidades de “Guantes de procedimiento”, marca “Nipro”, modelo “M”, lote <strong>GP-2508</strong>, vencimiento 30/06/2028. Se ingresa una sola fila con cantidad 10. Si cada caja es serializada, se escriben las 10 series, una por línea.</p></div>
+    <div class="callout"><strong>Nota sobre vencimiento:</strong> las existencias disponibles se ordenan priorizando la fecha de vencimiento más próxima cuando hay lotes comparables. Registre este dato de forma consistente.</div>
+    <div class="footer">03.1 · Trazabilidad de entradas</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">04 · Movimientos</div><h2>Registrar una salida</h2>
+    <p class="lead">Una salida descuenta stock y documenta a qué establecimiento se despachó, quién lo solicitó y desde qué origen se consumió.</p>
+    <ol class="steps"><li>Abra <strong>Movimientos → Salidas → Nueva salida</strong>.</li><li>Indique fecha, establecimiento de destino, solicitante y observaciones. La bodega principal se muestra automáticamente.</li><li>Pulse <strong>Agregar producto</strong>.</li><li>En <strong>Producto (SKU)</strong>, seleccione la alternativa disponible. Cada opción muestra la combinación de producto, marca, modelo, lote/origen y stock disponible.</li><li>Ingrese la cantidad a despachar. No puede superar el stock mostrado.</li><li>Si ese origen tiene unidades con serie, seleccione exactamente la misma cantidad de series.</li><li>Repita para los demás ítems y presione <strong>Guardar</strong>.</li></ol>
+    <table><thead><tr><th>Validación</th><th>Motivo</th></tr></thead><tbody><tr><td>Establecimiento obligatorio</td><td>Da destino al despacho.</td></tr><tr><td>Al menos un ítem</td><td>Evita documentos sin movimiento de stock.</td></tr><tr><td>Cantidad mayor que cero y menor o igual al disponible</td><td>Evita stock insuficiente.</td></tr><tr><td>Series seleccionadas = cantidad, cuando hay series disponibles</td><td>Conserva la trazabilidad por unidad.</td></tr></tbody></table>
+    <div class="callout warning"><strong>No seleccione solo el nombre del producto:</strong> el selector elige también el origen de stock. Este paso es el que mantiene el vínculo con la entrada o ajuste de aumento que abastece la salida.</div>
+    <div class="footer">04 · Salidas</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">04.1 · Salidas</div><h2>Consultar, editar y respaldar salidas</h2>
+    <p>El listado de <strong>Salidas</strong> muestra código, fecha, solicitante, establecimiento y observación. Use el ícono de ojo para el detalle, el PDF para descargar el comprobante y el lápiz para editar.</p>
+    <div class="two"><div class="panel"><h3>En el detalle verá</h3><ul class="tight"><li>Fecha, bodega, establecimiento y solicitante.</li><li>Productos, marca y modelo.</li><li>Entrada o ajuste de origen.</li><li>Series asignadas, cuando existen.</li><li>Cantidad despachada.</li></ul></div><div class="panel"><h3>Al editar</h3><ul class="tight"><li>Revise otra vez el stock disponible.</li><li>El sistema incluye las series ya seleccionadas para facilitar la corrección.</li><li>Guarde solo tras comprobar cantidades y origen.</li></ul></div></div>
+    <h3>Eliminar una salida</h3><p>Utilice eliminar únicamente si el documento fue ingresado por error o debe anularse en el sistema. Al eliminar, el movimiento deja de descontar existencias. Verifique el efecto posterior en Inventario y mantenga el respaldo documental de la decisión.</p>
+    <div class="callout success"><strong>Comprobante:</strong> desde el listado o el detalle puede generar/descargar el PDF individual de cada salida. Úselo como respaldo de despacho junto con el documento físico cuando aplique.</div>
+    <div class="footer">04.1 · Consulta de salidas</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">05 · Movimientos</div><h2>Registrar un ajuste de inventario</h2>
+    <p class="lead">El ajuste corrige diferencias o incorpora existencias que no provienen de una recepción regular. Debe utilizarse con motivo y respaldo.</p>
+    <ol class="steps"><li>Abra <strong>Movimientos → Ajustes → Nuevo ajuste</strong>.</li><li>La bodega principal se asigna automáticamente. Indique la fecha, el <strong>motivo obligatorio</strong> y, si corresponde, una observación.</li><li>Pulse <strong>Agregar ítem</strong>.</li><li>Seleccione <strong>Aumento</strong> o <strong>Disminución</strong>.</li><li>Complete el detalle según el tipo y guarde el ajuste.</li></ol>
+    <table><thead><tr><th>Tipo</th><th>Cómo completar el ítem</th><th>Efecto</th></tr></thead><tbody><tr><td><span class="badge green">Aumento</span></td><td>Seleccione producto, marca y modelo opcional; indique cantidad, observación y, cuando aplique, vencimiento y series.</td><td>Suma existencias y puede originar stock para futuros movimientos.</td></tr><tr><td><span class="badge orange">Disminución</span></td><td>Seleccione un <strong>origen disponible</strong>; el sistema completa producto, marca, modelo y lote. Indique cantidad y observación.</td><td>Resta existencias del origen elegido y no permite dejarlo negativo.</td></tr></tbody></table>
+    <div class="callout warning"><strong>Series en un aumento:</strong> son opcionales, pero si se ingresan debe haber una por cada unidad y no pueden repetirse. En una disminución se usa el origen disponible para preservar la trazabilidad.</div>
+    <div class="footer">05 · Ajustes de inventario</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">05.1 · Control</div><h2>Uso responsable de los ajustes</h2>
+    <div class="two"><div class="panel"><h3>Cuándo usar aumento</h3><ul class="tight"><li>Regularización tras conteo físico.</li><li>Existencia encontrada y validada.</li><li>Corrección documentada de una omisión.</li></ul></div><div class="panel"><h3>Cuándo usar disminución</h3><ul class="tight"><li>Merma, pérdida o deterioro.</li><li>Corrección tras conteo físico.</li><li>Vencimiento o baja autorizada.</li></ul></div></div>
+    <h3>Reglas que aplica el sistema</h3>
+    <ul><li>El ajuste requiere al menos un ítem válido, con producto, marca y cantidad mayor que cero.</li><li>Una disminución debe seleccionar un origen disponible y es validada antes de guardar para no dejar stock negativo.</li><li>Los ajustes se listan con fecha, bodega, motivo y cantidad de ítems. Desde allí se puede abrir el detalle o eliminar el documento.</li><li>El detalle permite ver si el movimiento fue aumento o disminución, su origen, lote/vencimiento y series si se registraron.</li></ul>
+    <div class="callout warning"><strong>Recomendación:</strong> no use ajustes para un despacho habitual. Si existe establecimiento de destino y solicitud, use <strong>Salida</strong>. Reserve el ajuste para correcciones y deje el motivo suficientemente claro para auditoría.</div>
+    <h3>Eliminar un ajuste</h3><p>La eliminación es una acción sensible: revierte su efecto sobre el inventario. Confirme el documento, revise qué salidas o disminuciones pueden depender de ese origen y consulte el Inventario después de eliminarlo.</p>
+    <div class="footer">05.1 · Buenas prácticas de ajustes</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">06 · Consulta</div><h2>Consultar el inventario actual</h2>
+    <p class="lead">Inventario presenta existencias consolidadas por producto, marca y modelo. Cada fila es un SKU operativo.</p>
+    <p>Abra <strong>Inventario</strong> en el menú. La tabla muestra:</p>
+    <table><thead><tr><th>Columna</th><th>Interpretación</th></tr></thead><tbody><tr><td>Entradas</td><td>Total recibido para la combinación producto + marca + modelo.</td></tr><tr><td>Salidas</td><td>Total despachado para esa combinación.</td></tr><tr><td>Ajustes</td><td>Efecto neto: positivo para aumentos y negativo para disminuciones.</td></tr><tr><td>Stock</td><td><strong>Entradas − Salidas + Ajustes</strong>.</td></tr></tbody></table>
+    <h3>Filtros disponibles</h3><ul><li>Texto: producto, marca o modelo.</li><li>Categoría y marca.</li><li>Estado: con stock, sin stock o stock negativo.</li><li><strong>Con ajustes</strong>: muestra solo SKU cuyo efecto neto de ajustes no es cero.</li></ul>
+    <h3>Ver movimientos de un SKU</h3><ol class="steps"><li>En la fila deseada, presione <strong>Movimientos</strong>.</li><li>Se abre el historial con tipo, documento, fecha, referencia/detalle, destino o bodega, series y cantidad con signo.</li><li>Puede filtrar el historial por <strong>N.º de serie</strong> y establecimiento de destino.</li><li>Pulse <strong>Ver</strong> para abrir el documento original de entrada, salida o ajuste.</li></ol>
+    <div class="callout"><strong>Lectura rápida:</strong> use el filtro “Stock negativo” como control de excepción. Si aparece una fila, revise primero su historial de movimientos y luego corrija solo con un documento respaldado.</div>
+    <div class="footer">06 · Inventario</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">07 · Supervisión</div><h2>Usar el Dashboard</h2>
+    <p class="lead">El Dashboard es la vista de control diario. No reemplaza el Inventario; lo resume y dirige a las acciones frecuentes.</p>
+    <table><thead><tr><th>Componente</th><th>Qué informa</th><th>Acción sugerida</th></tr></thead><tbody><tr><td>Productos con stock</td><td>Cantidad de productos distintos con existencias.</td><td>Indicador general de variedad disponible.</td></tr><tr><td>Unidades disponibles</td><td>Suma de unidades positivas en stock.</td><td>Vista rápida de disponibilidad total.</td></tr><tr><td>Entradas / salidas del mes</td><td>Documentos registrados desde el primer día del mes.</td><td>Controlar intensidad de recepción y despacho.</td></tr><tr><td>Alertas activas</td><td>Stock bajo/sin stock y lotes por vencer o vencidos.</td><td>Priorizar reposición, redistribución o baja.</td></tr><tr><td>Últimos movimientos</td><td>Hasta 10 movimientos recientes de entradas, salidas y ajustes.</td><td>Abrir <strong>Ver</strong> para revisar el documento.</td></tr></tbody></table>
+    <h3>Cómo se generan las alertas</h3><ul><li><strong>Stock bajo:</strong> cuando el total del producto llega o queda bajo el Stock mínimo definido en su catálogo. Si llega a cero, es crítica.</li><li><strong>Vencimiento:</strong> productos/lotes vencidos o que vencen dentro de los próximos 30 días, según el vencimiento registrado en la entrada o aumento de ajuste.</li></ul>
+    <div class="callout success"><strong>Rutina sugerida al inicio del día:</strong> consulte alertas, abra los últimos movimientos si necesita validar novedades y luego use Inventario para profundizar cualquier excepción.</div>
+    <div class="footer">07 · Dashboard</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">08 · Operación diaria</div><h2>Checklist y resolución de situaciones comunes</h2>
+    <div class="two"><div class="panel"><h3>Antes de guardar una entrada</h3><ul class="checklist"><li>Proveedor seleccionado.</li><li>N.º de documento ingresado.</li><li>Cantidad física cotejada.</li><li>Producto, marca y modelo correctos.</li><li>Lote/vencimiento y series revisados.</li></ul></div><div class="panel"><h3>Antes de guardar una salida</h3><ul class="checklist"><li>Establecimiento y solicitante confirmados.</li><li>Origen de stock correcto.</li><li>Cantidad dentro del disponible.</li><li>Series seleccionadas cuando corresponde.</li><li>Observación incluida si se requiere respaldo.</li></ul></div></div>
+    <table><thead><tr><th>Situación</th><th>Qué hacer</th></tr></thead><tbody><tr><td>No aparece un producto al crear una entrada</td><td>Verifique que exista en Catálogos y tenga categoría asignada.</td></tr><tr><td>No aparece un modelo</td><td>Confirme que fue creado para la marca seleccionada.</td></tr><tr><td>No aparece stock al crear una salida</td><td>Compruebe que exista una entrada o aumento de ajuste guardado, que sea de la bodega actual y que aún tenga saldo disponible.</td></tr><tr><td>El sistema rechaza las series</td><td>En entradas/aumentos, ingrese una por línea y que el total coincida con la cantidad. En salidas, seleccione exactamente la cantidad solicitada.</td></tr><tr><td>No se puede editar/eliminar una entrada</td><td>Revise si ya abastece salidas. La protección evita perder el vínculo de trazabilidad.</td></tr><tr><td>Hay diferencia entre físico y sistema</td><td>Investigue el historial en Inventario y documente el resultado. Si corresponde, registre un ajuste con motivo claro.</td></tr></tbody></table>
+    <h3>Cierre recomendado</h3><p>Al finalizar un ciclo de trabajo, revise Dashboard e Inventario, descargue los comprobantes que deban archivarse y cierre la sesión. El objetivo es que cada cambio físico tenga un movimiento registrado y cada movimiento pueda explicarse con su origen.</p>
+    <div class="footer">08 · Operación diaria</div>
+  </section>
+</body></html>

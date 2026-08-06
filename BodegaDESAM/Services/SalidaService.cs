@@ -141,6 +141,7 @@ namespace BodegaDESAM.Services
                         id_lote = detalle.id_lote,
                         id_ubicacion = detalle.id_ubicacion,
                         id_detalle_entrada = detalle.id_detalle_entrada,
+                        id_detalle_ajuste_origen = detalle.id_detalle_ajuste_origen,
                         Cantidad = detalle.Cantidad
                     });
                     continue;
@@ -152,6 +153,7 @@ namespace BodegaDESAM.Services
                 destino.id_lote = detalle.id_lote;
                 destino.id_ubicacion = detalle.id_ubicacion;
                 destino.id_detalle_entrada = detalle.id_detalle_entrada;
+                destino.id_detalle_ajuste_origen = detalle.id_detalle_ajuste_origen;
                 destino.Cantidad = detalle.Cantidad;
             }
             await db.SaveChangesAsync();
@@ -163,6 +165,16 @@ namespace BodegaDESAM.Services
         {
             if (salida.DetalleSalida == null || salida.DetalleSalida.Count == 0)
                 throw new InvalidOperationException("Debe agregar al menos un producto al detalle.");
+
+            // Los selectores de origen pueden representar una FK no aplicable como 0.
+            // Para Identity/EF, solo un valor positivo constituye un origen válido.
+            foreach (var detalle in salida.DetalleSalida)
+            {
+                if (detalle.id_detalle_entrada <= 0)
+                    detalle.id_detalle_entrada = null;
+                if (detalle.id_detalle_ajuste_origen <= 0)
+                    detalle.id_detalle_ajuste_origen = null;
+            }
 
             if (salida.DetalleSalida.Any(d => d.Cantidad <= 0 || (d.id_detalle_entrada.HasValue == d.id_detalle_ajuste_origen.HasValue)))
                 throw new InvalidOperationException("Debe seleccionar exactamente un origen de stock para cada producto.");
@@ -230,64 +242,6 @@ namespace BodegaDESAM.Services
                 }
             }
 
-            var requerido = salida.DetalleSalida.Where(d => d.id_detalle_entrada.HasValue)
-                .Where(d => d != null && d.id_producto > 0)
-                .GroupBy(d => d.id_producto)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Cantidad));
-
-            if (requerido.Count == 0)
-                throw new InvalidOperationException("Debe seleccionar al menos un producto válido.");
-
-            var productoIds = requerido.Keys.ToList();
-
-            var entradas = await db.DetalleEntrada
-                .AsNoTracking()
-                .Where(d => productoIds.Contains(d.id_producto))
-                .GroupBy(d => d.id_producto)
-                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
-                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
-
-            var salidas = await db.DetalleSalida
-                .AsNoTracking()
-                .Where(d => productoIds.Contains(d.id_producto))
-                .GroupBy(d => d.id_producto)
-                .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
-                .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
-
-            if (salida.Id != 0)
-            {
-                var salidasActual = await db.DetalleSalida
-                    .AsNoTracking()
-                    .Where(d => d.id_salida == salida.Id && productoIds.Contains(d.id_producto))
-                    .GroupBy(d => d.id_producto)
-                    .Select(g => new { IdProducto = g.Key, Total = g.Sum(x => (long?)x.Cantidad) ?? 0L })
-                    .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
-
-                foreach (var kvp in salidasActual)
-                    salidas[kvp.Key] = (salidas.TryGetValue(kvp.Key, out var s) ? s : 0L) - kvp.Value;
-            }
-
-            var nombres = await db.Producto
-                .AsNoTracking()
-                .Where(p => productoIds.Contains(p.Id))
-                .Select(p => new { p.Id, p.Nombre })
-                .ToDictionaryAsync(x => x.Id, x => x.Nombre);
-
-            foreach (var req in requerido)
-            {
-                var idProducto = req.Key;
-                var cantReq = req.Value;
-
-                var totalEntradas = entradas.TryGetValue(idProducto, out var te) ? te : 0L;
-                var totalSalidas = salidas.TryGetValue(idProducto, out var ts) ? ts : 0L;
-                var stock = totalEntradas - totalSalidas;
-
-                if (cantReq > stock)
-                {
-                    var nombre = nombres.TryGetValue(idProducto, out var n) ? n : $"ID {idProducto}";
-                    throw new InvalidOperationException($"Stock insuficiente para '{nombre}'. Disponible: {stock}. Solicitado: {cantReq}.");
-                }
-            }
         }
 
         public async Task<bool> DeleteAsync(long id)

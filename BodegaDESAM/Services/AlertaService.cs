@@ -24,6 +24,10 @@ namespace BodegaDESAM.Services
 
         private const int DiasProximoVencimiento = 30;
 
+        // Permite avisar a los componentes que muestran el contador de alertas
+        // cuando un movimiento cambia el stock o los vencimientos.
+        public event Func<Task>? AlertasActualizadas;
+
         public AlertaService(
             IDbContextFactory<PostgresDataContext> factory,
             InventarioService inventarioService)
@@ -40,6 +44,16 @@ namespace BodegaDESAM.Services
             alertas.AddRange(await GetAlertasLotesPorVencerAsync());
 
             return alertas;
+        }
+
+        public async Task NotificarActualizacionAsync()
+        {
+            var handlers = AlertasActualizadas?.GetInvocationList();
+            if (handlers is null)
+                return;
+
+            foreach (var handler in handlers.Cast<Func<Task>>())
+                await handler();
         }
 
         /// <summary>

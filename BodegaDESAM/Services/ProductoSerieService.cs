@@ -2,7 +2,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BodegaDESAM.Services
 {
-    public sealed record SalidaSerieSeleccion(int IdProducto, int? IdDetalleEntrada, IEnumerable<string> Series);
+    public sealed record SalidaSerieSeleccion(
+        int IdProducto,
+        int? IdDetalleEntrada,
+        int? IdDetalleAjusteOrigen,
+        IEnumerable<string> Series);
 
     public class ProductoSerieService
     {
@@ -26,20 +30,21 @@ namespace BodegaDESAM.Services
         }
 
         /// <summary>
-        /// Obtiene las series disponibles filtrando por SKU completo (Producto + Marca + Modelo)
+        /// Obtiene las series disponibles para el origen seleccionado de una salida.
         /// </summary>
-        public async Task<List<string>> GetDisponiblesPorSkuAsync(int idProducto, long idMarca, long? idModelo, int? idDetalleEntrada = null)
+        public async Task<List<string>> GetDisponiblesPorSkuAsync(
+            int idProducto,
+            int? idDetalleEntrada = null,
+            int? idDetalleAjusteOrigen = null)
         {
             using var db = _factory.CreateDbContext();
 
             return await db.ProductoSerie
                 .AsNoTracking()
-                .Include(s => s.DetalleEntrada)
                 .Where(s => s.id_producto == idProducto 
                     && s.id_salida == null
-                    && s.DetalleEntrada.id_marca == idMarca
-                    && s.DetalleEntrada.id_modelo == idModelo
-                    && (!idDetalleEntrada.HasValue || s.id_detalle_entrada == idDetalleEntrada.Value))
+                    && (!idDetalleEntrada.HasValue || s.id_detalle_entrada == idDetalleEntrada.Value)
+                    && (!idDetalleAjusteOrigen.HasValue || s.id_detalle_ajuste == idDetalleAjusteOrigen.Value))
                 .OrderBy(s => s.Serie)
                 .Select(s => s.Serie)
                 .ToListAsync();
@@ -175,7 +180,12 @@ namespace BodegaDESAM.Services
             return entities;
         }
 
-        public async Task AsociarASalidaAsync(int idSalida, int idProducto, IEnumerable<string> series, int? idDetalleEntrada = null)
+        public async Task AsociarASalidaAsync(
+            int idSalida,
+            int idProducto,
+            IEnumerable<string> series,
+            int? idDetalleEntrada = null,
+            int? idDetalleAjusteOrigen = null)
         {
             var seriesList = series
                 .Select(s => (s ?? string.Empty).Trim())
@@ -186,7 +196,8 @@ namespace BodegaDESAM.Services
 
             var disponibles = await db.ProductoSerie
                 .Where(s => s.id_producto == idProducto && s.id_salida == null && seriesList.Contains(s.Serie)
-                    && (!idDetalleEntrada.HasValue || s.id_detalle_entrada == idDetalleEntrada.Value))
+                    && (!idDetalleEntrada.HasValue || s.id_detalle_entrada == idDetalleEntrada.Value)
+                    && (!idDetalleAjusteOrigen.HasValue || s.id_detalle_ajuste == idDetalleAjusteOrigen.Value))
                 .ToListAsync();
 
             if (disponibles.Count != seriesList.Count)
@@ -205,13 +216,14 @@ namespace BodegaDESAM.Services
                 {
                     x.IdProducto,
                     x.IdDetalleEntrada,
+                    x.IdDetalleAjusteOrigen,
                     Serie = (serie ?? string.Empty).Trim()
                 }))
                 .Where(x => !string.IsNullOrWhiteSpace(x.Serie))
                 .ToList();
 
             var duplicada = solicitadas
-                .GroupBy(x => (x.IdProducto, x.IdDetalleEntrada, Serie: x.Serie.ToUpperInvariant()))
+                .GroupBy(x => (x.IdProducto, x.IdDetalleEntrada, x.IdDetalleAjusteOrigen, Serie: x.Serie.ToUpperInvariant()))
                 .FirstOrDefault(g => g.Count() > 1);
             if (duplicada != null)
                 throw new InvalidOperationException("Una serie no puede seleccionarse más de una vez.");
@@ -227,6 +239,7 @@ namespace BodegaDESAM.Services
             {
                 var serie = candidatas.FirstOrDefault(s => s.id_producto == item.IdProducto
                     && s.id_detalle_entrada == item.IdDetalleEntrada
+                    && s.id_detalle_ajuste == item.IdDetalleAjusteOrigen
                     && string.Equals(s.Serie, item.Serie, StringComparison.OrdinalIgnoreCase));
                 if (serie == null)
                     throw new InvalidOperationException($"La serie '{item.Serie}' ya no está disponible.");

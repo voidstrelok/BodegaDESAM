@@ -12,7 +12,7 @@ public static class AppSeed
 
         // Idempotente: si ya hay datos básicos, no volver a insertar
         if (await db.Marca.AnyAsync() || await db.CategoriaProducto.AnyAsync()
-            || await db.Proveedor.AnyAsync() || await db.Bodega.AnyAsync() || await db.Establecimiento.AnyAsync())
+            || await db.Proveedor.AnyAsync())
             return;
 
         // ============ MARCAS ============
@@ -73,43 +73,7 @@ public static class AppSeed
         await db.SaveChangesAsync();
 
        
-        // ============ BODEGA CENTRAL (única) ============
-        var bodegaCentral = new Bodega
-        {
-            Codigo = "BOD-CENTRAL",
-            Nombre = "Bodega Central DESAM",
-            Direccion = "Avenida Ferroviaria, Monte Patria, Región de Coquimbo",
-            EsPrincipal = true,
-            Activa = true
-        };
-        db.Bodega.Add(bodegaCentral);
-        await db.SaveChangesAsync();
-
-        var bodegas = new[] { bodegaCentral };
-
-        /* ============ UBICACIONES ============
-        var ubicaciones = new[]
-        {
-            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "01", Nivel = "1", Posicion = "A", CodigoCompleto = "A-01-1-A", CapacidadMaxima = 100 },
-            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "01", Nivel = "2", Posicion = "B", CodigoCompleto = "A-01-2-B", CapacidadMaxima = 100 },
-            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "A", Estante = "02", Nivel = "1", Posicion = "A", CodigoCompleto = "A-02-1-A", CapacidadMaxima = 150 },
-            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "B", Estante = "01", Nivel = "1", Posicion = "A", CodigoCompleto = "B-01-1-A", CapacidadMaxima = 200 },
-            new Ubicacion { id_bodega = bodegaCentral.Id, Pasillo = "B", Estante = "02", Nivel = "3", Posicion = "C", CodigoCompleto = "B-02-3-C", CapacidadMaxima = 80 },
-        };
-        db.Ubicacion.AddRange(ubicaciones);
-        await db.SaveChangesAsync();
-*/
-       
-        // ============ ESTABLECIMIENTOS ============
-        var establecimientos = new[]
-        {
-            new Establecimiento { Nombre = "Centro de Salud Familiar Monte Patria" },
-            new Establecimiento { Nombre = "Centro de Salud Familiar Carén" },
-            new Establecimiento { Nombre = "Centro de Salud Familiar El Palqui" },
-            new Establecimiento { Nombre = "Centro de Salud Familiar Chañaral Alto" },
-        };
-        db.Establecimiento.AddRange(establecimientos);
-        await db.SaveChangesAsync();
+        
         
     }
 }

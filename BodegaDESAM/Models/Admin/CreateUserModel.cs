@@ -17,4 +17,7 @@ public sealed class CreateUserVm
 
     [Required, MaxLength(100)]
     public string? Apellido { get; set; }
+
+    [Required, MaxLength(100)]
+    public string? ApellidoMaterno { get; set; }
 }

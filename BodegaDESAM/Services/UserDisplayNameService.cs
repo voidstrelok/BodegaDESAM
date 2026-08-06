@@ -23,11 +23,15 @@ public sealed class UserDisplayNameService
         var claims = await _userManager.GetClaimsAsync(user);
         var nombre = claims.FirstOrDefault(c => c.Type == "given_name")?.Value;
         var apellido = claims.FirstOrDefault(c => c.Type == "family_name")?.Value;
-        var nombreCompleto = string.Join(" ", new[] { nombre, apellido }
+        var apellidoMaterno = claims.FirstOrDefault(c => c.Type == "maternal_family_name")?.Value;
+        var nombreCompleto = string.Join(" ", new[] { nombre, apellido, apellidoMaterno }
             .Where(valor => !string.IsNullOrWhiteSpace(valor))
             .Select(valor => valor!.Trim()));
 
-        return string.IsNullOrWhiteSpace(nombreCompleto) ? null : nombreCompleto;
+        if (!string.IsNullOrWhiteSpace(nombreCompleto))
+            return nombreCompleto;
+
+        return user.Email ?? user.UserName;
     }
 
     // Conserva compatibilidad con los consumidores existentes.
