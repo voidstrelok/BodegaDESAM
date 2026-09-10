@@ -69,11 +69,11 @@ else
     bool MostrarConfirmEliminar;
     long IdEliminar;
     string? ErrorEliminar;
-    protected override async Task OnInitializedAsync() => entradas = await EntradaService.GetAllAsync();
+    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); entradas = await EntradaService.GetAllAsync(); }
     void Nuevo() => Nav.NavigateTo("/entradas/nuevo");
     void Ver(int id) => Nav.NavigateTo($"/entradas/{id}");
     void Editar(int id) => Nav.NavigateTo($"/entradas/editar/{id}");
     Task Eliminar(long id) { IdEliminar = id; MostrarConfirmEliminar = true; ErrorEliminar = null; return Task.CompletedTask; }
-    async Task ConfirmarEliminar() { try { if (await EntradaService.DeleteAsync(IdEliminar)) { MostrarConfirmEliminar = false; entradas = await EntradaService.GetAllAsync(); } } catch (Exception ex) { ErrorEliminar = ex.Message; } }
+    async Task ConfirmarEliminar() { using var loading = LoadingState.Begin(); try { if (await EntradaService.DeleteAsync(IdEliminar)) { MostrarConfirmEliminar = false; entradas = await EntradaService.GetAllAsync(); } } catch (Exception ex) { ErrorEliminar = ex.Message; } }
     void CancelarEliminar() { MostrarConfirmEliminar = false; IdEliminar = 0; ErrorEliminar = null; }
 }

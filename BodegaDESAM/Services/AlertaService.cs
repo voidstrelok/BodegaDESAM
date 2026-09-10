@@ -15,6 +15,8 @@ namespace BodegaDESAM.Services
         public SeveridadAlerta Severidad { get; set; }
         public string Mensaje { get; set; } = string.Empty;
         public int IdReferencia { get; set; }
+        public string? TipoMovimiento { get; set; }
+        public int? IdMovimiento { get; set; }
     }
 
     public class AlertaService
@@ -124,10 +126,41 @@ namespace BodegaDESAM.Services
                 .OrderBy(l => l.FechaVencimiento)
                 .ToListAsync();
 
+            var loteIds = lotesPorVencer.Select(l => l.Id).ToList();
+            var entradaOrigenPorLote = loteIds.Count == 0
+                ? new Dictionary<long, int>()
+                : await db.DetalleEntrada
+                    .AsNoTracking()
+                    .Where(d => d.id_lote.HasValue && loteIds.Contains(d.id_lote.Value))
+                    .GroupBy(d => d.id_lote!.Value)
+                    .Select(g => new
+                    {
+                        IdLote = g.Key,
+                        IdEntrada = g.OrderBy(d => d.id_entrada).Select(d => d.id_entrada).First()
+                    })
+                    .ToDictionaryAsync(x => x.IdLote, x => x.IdEntrada);
+
+            var ajusteOrigenPorLote = loteIds.Count == 0
+                ? new Dictionary<long, int>()
+                : await db.DetalleAjuste
+                    .AsNoTracking()
+                    .Where(d => d.TipoAjuste == TipoAjuste.Aumento
+                        && d.id_lote.HasValue
+                        && loteIds.Contains(d.id_lote.Value))
+                    .GroupBy(d => d.id_lote!.Value)
+                    .Select(g => new
+                    {
+                        IdLote = g.Key,
+                        IdAjuste = g.OrderBy(d => d.id_ajuste).Select(d => d.id_ajuste).First()
+                    })
+                    .ToDictionaryAsync(x => x.IdLote, x => x.IdAjuste);
+
             foreach (var lote in lotesPorVencer)
             {
                 var yaVencido = lote.FechaVencimiento!.Value < hoy;
                 var diasRestantes = lote.FechaVencimiento.Value.DayNumber - hoy.DayNumber;
+                var tieneEntradaOrigen = entradaOrigenPorLote.TryGetValue(lote.Id, out var idEntrada);
+                var tieneAjusteOrigen = ajusteOrigenPorLote.TryGetValue(lote.Id, out var idAjuste);
 
                 alertas.Add(new AlertaDto
                 {
@@ -136,7 +169,9 @@ namespace BodegaDESAM.Services
                     Mensaje = yaVencido
                         ? $"Lote vencido: '{lote.Producto?.Nombre}' — Lote {lote.Codigo} (venció el {lote.FechaVencimiento.Value:dd/MM/yyyy})"
                         : $"Lote por vencer: '{lote.Producto?.Nombre}' — Lote {lote.Codigo} — vence en {diasRestantes} día(s) ({lote.FechaVencimiento.Value:dd/MM/yyyy})",
-                    IdReferencia = (int)lote.Id
+                    IdReferencia = (int)lote.Id,
+                    TipoMovimiento = tieneEntradaOrigen ? "Entrada" : tieneAjusteOrigen ? "Ajuste" : null,
+                    IdMovimiento = tieneEntradaOrigen ? idEntrada : tieneAjusteOrigen ? idAjuste : null
                 });
             }
 
@@ -153,6 +188,7 @@ namespace BodegaDESAM.Services
                 {
                     g.Key.id_producto,
                     g.Key.FechaVencimiento,
+                    IdEntrada = g.OrderBy(d => d.id_entrada).Select(d => d.id_entrada).First(),
                     ProductoNombre = g.First().Producto != null ? g.First().Producto.Nombre : "Desconocido"
                 })
                 .OrderBy(d => d.FechaVencimiento)
@@ -171,7 +207,9 @@ namespace BodegaDESAM.Services
                     Mensaje = yaVencido
                         ? $"Producto vencido: '{detalle.ProductoNombre}' (venció el {fecha:dd/MM/yyyy})"
                         : $"Producto por vencer: '{detalle.ProductoNombre}' — vence en {diasRestantes} día(s) ({fecha:dd/MM/yyyy})",
-                    IdReferencia = detalle.id_producto
+                    IdReferencia = detalle.id_producto,
+                    TipoMovimiento = "Entrada",
+                    IdMovimiento = detalle.IdEntrada
                 });
             }
 
@@ -187,6 +225,7 @@ namespace BodegaDESAM.Services
                 {
                     g.Key.id_producto,
                     g.Key.FechaVencimiento,
+                    IdAjuste = g.OrderBy(d => d.id_ajuste).Select(d => d.id_ajuste).First(),
                     ProductoNombre = g.First().Producto != null ? g.First().Producto.Nombre : "Desconocido"
                 })
                 .OrderBy(d => d.FechaVencimiento)
@@ -205,7 +244,9 @@ namespace BodegaDESAM.Services
                     Mensaje = yaVencido
                         ? $"Producto vencido (ajuste): '{detalle.ProductoNombre}' (venció el {fecha:dd/MM/yyyy})"
                         : $"Producto por vencer (ajuste): '{detalle.ProductoNombre}' — vence en {diasRestantes} día(s) ({fecha:dd/MM/yyyy})",
-                    IdReferencia = detalle.id_producto
+                    IdReferencia = detalle.id_producto,
+                    TipoMovimiento = "Ajuste",
+                    IdMovimiento = detalle.IdAjuste
                 });
             }
 

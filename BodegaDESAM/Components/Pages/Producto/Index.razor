@@ -56,6 +56,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         productos = await Service.GetAllAsync();
     }
 

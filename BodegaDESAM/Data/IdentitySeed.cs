@@ -54,6 +54,7 @@ public static class IdentitySeed
             new Establecimiento { Nombre = "Centro de Salud Familiar Carén" },
             new Establecimiento { Nombre = "Centro de Salud Familiar El Palqui" },
             new Establecimiento { Nombre = "Centro de Salud Familiar Chañaral Alto" },
+            new Establecimiento { Nombre = "SAR Monte Patria" },
             new Establecimiento { Nombre = "Departamento de Salud" }
         };
         db.Establecimiento.AddRange(establecimientos);

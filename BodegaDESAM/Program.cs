@@ -75,6 +75,7 @@ builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<AlertaService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AjusteInventarioService>();
+builder.Services.AddScoped<LoadingState>();
 builder.Services.AddSingleton<ThemeService>(); // Singleton para mantener estado entre navegaciones
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<PostgresDataContext>();

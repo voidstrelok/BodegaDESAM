@@ -71,6 +71,7 @@ namespace BodegaDESAM.Services
 
             using var db = _factory.CreateDbContext();
             ValidarAjuste(ajuste);
+            await ValidarLotesAsync(db, ajuste);
             await ValidarDisminucionesAsync(db, ajuste);
             db.AjusteInventario.Add(ajuste);
             await db.SaveChangesAsync();
@@ -108,6 +109,33 @@ namespace BodegaDESAM.Services
                 if (detalle.TipoAjuste == TipoAjuste.Disminucion &&
                     (detalle.id_detalle_entrada_origen.HasValue == detalle.id_detalle_ajuste_origen.HasValue))
                     throw new InvalidOperationException("Cada disminución debe seleccionar exactamente un origen de stock.");
+            }
+        }
+
+        private static async Task ValidarLotesAsync(PostgresDataContext db, AjusteInventario ajuste)
+        {
+            var loteIds = ajuste.DetalleAjuste
+                .Where(d => d.id_lote.HasValue)
+                .Select(d => d.id_lote!.Value)
+                .Distinct()
+                .ToList();
+
+            if (loteIds.Count == 0)
+                return;
+
+            var lotes = await db.Lote
+                .AsNoTracking()
+                .Where(l => loteIds.Contains(l.Id))
+                .Select(l => new { l.Id, l.id_producto })
+                .ToDictionaryAsync(l => l.Id);
+
+            foreach (var detalle in ajuste.DetalleAjuste.Where(d => d.id_lote.HasValue))
+            {
+                if (!lotes.TryGetValue(detalle.id_lote!.Value, out var lote))
+                    throw new InvalidOperationException("El lote seleccionado no existe.");
+
+                if (lote.id_producto != detalle.id_producto)
+                    throw new InvalidOperationException("El lote seleccionado no pertenece al producto indicado.");
             }
         }
 

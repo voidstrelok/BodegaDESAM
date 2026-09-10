@@ -5,6 +5,7 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         var state = await AuthState.GetAuthenticationStateAsync();
 
         if (state.User?.Identity?.IsAuthenticated is true)

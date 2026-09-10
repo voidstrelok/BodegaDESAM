@@ -21,9 +21,9 @@ else
 
 @code {
     private List<AjusteInventario>? ajustes; private bool mostrarConfirmacion; private int? idAEliminar; private string? errorMsg;
-    protected override async Task OnInitializedAsync() => await CargarAsync(); private async Task CargarAsync() => ajustes = await AjusteService.GetAllAsync();
+    protected override async Task OnInitializedAsync() => await CargarAsync(); private async Task CargarAsync() { using var loading = LoadingState.Begin(); ajustes = await AjusteService.GetAllAsync(); }
     private void Nuevo() => Nav.NavigateTo("/ajustes/nuevo"); private void Ver(int id) => Nav.NavigateTo($"/ajustes/{id}");
     private void ConfirmarEliminar(int id) { idAEliminar = id; mostrarConfirmacion = true; errorMsg = null; }
     private void CancelarEliminar() { mostrarConfirmacion = false; idAEliminar = null; }
-    private async Task EjecutarEliminar() { if (!idAEliminar.HasValue) return; try { await AjusteService.DeleteAsync(idAEliminar.Value, "sistema"); mostrarConfirmacion = false; idAEliminar = null; await CargarAsync(); } catch (Exception ex) { errorMsg = ex.Message; mostrarConfirmacion = false; } }
+    private async Task EjecutarEliminar() { using var loading = LoadingState.Begin(); if (!idAEliminar.HasValue) return; try { await AjusteService.DeleteAsync(idAEliminar.Value, "sistema"); mostrarConfirmacion = false; idAEliminar = null; await CargarAsync(); } catch (Exception ex) { errorMsg = ex.Message; mostrarConfirmacion = false; } }
 }

@@ -59,6 +59,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         if (Id != null)
         {
             var existente = await Service.GetByIdAsync((long)Id);
@@ -71,6 +72,7 @@
     {
         error = null;
         busy = true;
+        using var loading = LoadingState.Begin();
 
         try
         {

@@ -87,6 +87,8 @@
                                SerieInput="@GetSerieInput(idx)"
                                SerieInputChanged="@((v) => SetSerieInput(idx, v))"
                                ErrorSerie="@GetErrorSerie(idx)"
+                               LoteInput="@GetLoteInput(idx)"
+                               LoteInputChanged="@((v) => SetLoteInput(idx, v))"
                                OnRemove="() => QuitarItem(idx)" />
             }
         }
@@ -119,9 +121,11 @@
 
     private Dictionary<int, string> serieInputs = new();
     private Dictionary<int, string?> erroresSerie = new();
+    private Dictionary<int, string> loteInputs = new();
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         var bodega = await BodegaService.GetPrincipalAsync();
         if (bodega != null)
         {
@@ -146,6 +150,7 @@
         var idx = items.Count;
         items.Add(new DetalleAjuste { Cantidad = 1, TipoAjuste = TipoAjuste.Aumento });
         serieInputs[idx] = string.Empty;
+        loteInputs[idx] = string.Empty;
     }
 
     private void QuitarItem(int idx)
@@ -154,19 +159,24 @@
         // Reindexar diccionarios
         var nuevoInputs = new Dictionary<int, string>();
         var nuevoErrores = new Dictionary<int, string?>();
+        var nuevosLotes = new Dictionary<int, string>();
         for (int i = 0; i < items.Count; i++)
         {
             var oldIdx = i < idx ? i : i + 1;
             nuevoInputs[i] = serieInputs.TryGetValue(oldIdx, out var v) ? v : string.Empty;
             nuevoErrores[i] = erroresSerie.TryGetValue(oldIdx, out var e) ? e : null;
+            nuevosLotes[i] = loteInputs.TryGetValue(oldIdx, out var lote) ? lote : string.Empty;
         }
         serieInputs = nuevoInputs;
         erroresSerie = nuevoErrores;
+        loteInputs = nuevosLotes;
     }
 
     private string GetSerieInput(int idx) => serieInputs.TryGetValue(idx, out var v) ? v : string.Empty;
     private void SetSerieInput(int idx, string value) => serieInputs[idx] = value;
     private string? GetErrorSerie(int idx) => erroresSerie.TryGetValue(idx, out var e) ? e : null;
+    private string GetLoteInput(int idx) => loteInputs.TryGetValue(idx, out var v) ? v : string.Empty;
+    private void SetLoteInput(int idx, string value) => loteInputs[idx] = value;
 
     private bool ValidarSeries()
     {
@@ -248,13 +258,18 @@
         if (!ValidarSeries())
             return;
 
+        if (!ValidarLotes())
+            return;
+
         var authState = await AuthState.GetAuthenticationStateAsync();
         ajuste.IdUsuario = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "sistema";
         ajuste.DetalleAjuste = items;
 
         guardando = true;
+        using var loading = LoadingState.Begin();
         try
         {
+            await ResolverLotesAsync();
             await AjusteService.CreateAsync(ajuste, ObtenerSeriesPorItem());
             await AlertaService.NotificarActualizacionAsync();
             Nav.NavigateTo("/ajustes");
@@ -266,6 +281,63 @@
         finally
         {
             guardando = false;
+        }
+    }
+
+    private bool ValidarLotes()
+    {
+        for (int idx = 0; idx < items.Count; idx++)
+        {
+            var item = items[idx];
+            if (item.TipoAjuste != TipoAjuste.Aumento)
+            {
+                item.id_lote = null;
+                continue;
+            }
+
+            var codigo = GetLoteInput(idx);
+            if (string.IsNullOrWhiteSpace(codigo))
+            {
+                item.id_lote = null;
+                continue;
+            }
+
+            if (codigo.Trim().Length > 50)
+            {
+                errorMsg = "El código de lote no puede superar los 50 caracteres.";
+                return false;
+            }
+
+            if (item.id_producto <= 0)
+            {
+                errorMsg = "Debe seleccionar un producto antes de asignar un lote.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async Task ResolverLotesAsync()
+    {
+        for (int idx = 0; idx < items.Count; idx++)
+        {
+            var item = items[idx];
+            if (item.TipoAjuste != TipoAjuste.Aumento)
+            {
+                item.id_lote = null;
+                continue;
+            }
+
+            var codigo = GetLoteInput(idx);
+            if (string.IsNullOrWhiteSpace(codigo))
+            {
+                item.id_lote = null;
+                continue;
+            }
+
+            var lote = await LoteService.GetOrCreateAsync(item.id_producto, codigo.Trim());
+            item.id_lote = lote.Id;
         }
     }
 

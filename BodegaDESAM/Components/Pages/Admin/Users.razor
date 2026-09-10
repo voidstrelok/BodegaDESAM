@@ -190,6 +190,7 @@ else
 
     async Task LoadAsync()
     {
+        using var loading = LoadingState.Begin();
         error = null;
         success = null;
 
@@ -260,6 +261,7 @@ else
 
     async Task SaveUserAsync(string userId)
     {
+        using var loading = LoadingState.Begin();
         error = null;
         success = null;
         busy = true;
@@ -343,6 +345,7 @@ else
 
     async Task CreateUserAsync()
     {
+        using var loading = LoadingState.Begin();
         error = null;
         success = null;
         busy = true;
@@ -418,6 +421,7 @@ else
 
     async Task UpdateRoleAsync(string userId, bool add)
     {
+        using var loading = LoadingState.Begin();
         error = null;
         success = null;
         busy = true;
@@ -500,6 +504,7 @@ else
 
     async Task ResetPasswordAsync(string userId)
     {
+        using var loading = LoadingState.Begin();
         error = null;
         success = null;
         busy = true;

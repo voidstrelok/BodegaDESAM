@@ -1,4 +1,10 @@
 /* ============================================
+   FIX Blazor
+   ============================================ */
+#components-reconnect-modal {
+    display: none !important;
+}
+/* ============================================
    VARIABLES DE TEMA - MODO CLARO Y OSCURO
    ============================================ */
 
@@ -62,6 +68,8 @@
     --table-stripe: rgba(255, 255, 255, 0.02);
 }
 
+
+
 /* ============================================
    ESTILOS BASE
    ============================================ */
@@ -77,9 +85,67 @@ body {
     overflow-x: hidden;
 }
 
-main > article.content {
+.page {
     min-height: 100vh;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-width: 0;
+}
+
+.global-loading-overlay {
+    align-items: center;
+    background: rgba(15, 23, 42, 0.28);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    position: fixed;
+    z-index: 2000;
+}
+
+.global-loading-card {
+    align-items: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+}
+
+main > article.content {
+    flex: 1;
+    min-height: 0;
     background: var(--bg-secondary);
+}
+
+.contact-footer {
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: .82rem;
+    gap: .35rem;
+    justify-content: center;
+    padding: 1rem 1.5rem;
+    text-align: center;
+}
+
+.contact-footer a {
+    align-items: center;
+    display: inline-flex;
+    font-weight: 600;
+}
+
+.contact-footer-brand {
+    color: var(--text-secondary);
+    font-weight: 600;
 }
 
 .content .container-fluid {
@@ -352,6 +418,8 @@ a:hover, .btn-link:hover {
 .auth-brand-features i { color: #a7efc1; margin-right: .45rem; }
 .auth-form-panel { align-items: center; display: flex; justify-content: center; padding: 2rem; }
 .auth-form-container { max-width: 400px; width: 100%; }
+.auth-form-panel { flex-direction: column; }
+.auth-form-panel .contact-footer { border-top: 0; margin-top: 1.5rem; padding-left: 0; padding-right: 0; width: 100%; }
 .login-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 1rem; box-shadow: var(--shadow-lg); padding: 2rem; }
 .login-heading { margin-bottom: 1.75rem; }
 .login-heading h2 { color: var(--text-primary); font-size: 1.75rem; font-weight: 700; letter-spacing: -.03em; margin: .3rem 0; }
@@ -385,6 +453,11 @@ a:hover, .btn-link:hover {
 
     .card-section {
         border-radius: 0.625rem;
+    }
+
+    .contact-footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
     .modal-dialog {

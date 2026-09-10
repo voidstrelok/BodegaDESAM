@@ -29,9 +29,9 @@ else
 
 @code {
     private List<Salida>? salidas; private bool MostrarConfirmEliminar; private long IdEliminar;
-    protected override async Task OnInitializedAsync() => salidas = await SalidaService.GetAllAsync();
+    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); salidas = await SalidaService.GetAllAsync(); }
     private void Nuevo() => Nav.NavigateTo("/salidas/nuevo"); private void Ver(int id) => Nav.NavigateTo($"/salidas/{id}"); private void Editar(int id) => Nav.NavigateTo($"/salidas/editar/{id}");
     private Task Eliminar(long id) { IdEliminar = id; MostrarConfirmEliminar = true; return Task.CompletedTask; }
-    private async Task ConfirmarEliminar() { MostrarConfirmEliminar = false; if (await SalidaService.DeleteAsync(IdEliminar)) salidas = await SalidaService.GetAllAsync(); }
+    private async Task ConfirmarEliminar() { using var loading = LoadingState.Begin(); MostrarConfirmEliminar = false; if (await SalidaService.DeleteAsync(IdEliminar)) salidas = await SalidaService.GetAllAsync(); }
     private void CancelarEliminar() { MostrarConfirmEliminar = false; IdEliminar = 0; }
 }

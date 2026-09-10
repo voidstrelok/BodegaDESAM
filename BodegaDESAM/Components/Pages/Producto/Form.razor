@@ -60,6 +60,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         Categorias = await CategoriaProductoService.GetAllAsync();
         
         if (Id != null)
@@ -74,6 +75,8 @@
     {
         if (!editContext.Validate())
             return;
+
+        using var loading = LoadingState.Begin();
 
         if (Id == null)
         {

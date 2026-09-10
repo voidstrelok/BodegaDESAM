@@ -73,6 +73,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         marcas = await MarcaService.GetAllAsync();
 
         if (Id != null)
@@ -93,6 +94,7 @@
     {
         error = null;
         busy = true;
+        using var loading = LoadingState.Begin();
 
         try
         {

@@ -19,6 +19,6 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private AjusteInventario? ajuste; private string? usuario; private Dictionary<int, List<string>> seriesPorDetalle = new();
-    protected override async Task OnInitializedAsync() { ajuste = await AjusteService.GetByIdAsync(Id); if (ajuste == null) { Nav.NavigateTo("/ajustes"); return; } usuario = await UserDisplayNameService.GetNombreCompletoAsync(ajuste.IdUsuario); var series = await SerieService.GetSeriesPorAjusteAsync(Id); seriesPorDetalle = series.GroupBy(x => x.id_detalle_ajuste ?? 0).ToDictionary(g => g.Key, g => g.Select(x => x.Serie).ToList()); }
+    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); ajuste = await AjusteService.GetByIdAsync(Id); if (ajuste == null) { Nav.NavigateTo("/ajustes"); return; } usuario = await UserDisplayNameService.GetNombreCompletoAsync(ajuste.IdUsuario); var series = await SerieService.GetSeriesPorAjusteAsync(Id); seriesPorDetalle = series.GroupBy(x => x.id_detalle_ajuste ?? 0).ToDictionary(g => g.Key, g => g.Select(x => x.Serie).ToList()); }
     private void Volver() => Nav.NavigateTo("/ajustes");
 }

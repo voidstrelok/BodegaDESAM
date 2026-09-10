@@ -24,6 +24,6 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private Entrada? entrada; private string? usuario;
-    protected override async Task OnInitializedAsync() { entrada = await EntradaService.GetByIdAsync(Id); if (entrada == null) { Nav.NavigateTo("/entradas"); return; } usuario = await UserDisplayNameService.GetNombreAsync(entrada.IdUsuario); }
+    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); entrada = await EntradaService.GetByIdAsync(Id); if (entrada == null) { Nav.NavigateTo("/entradas"); return; } usuario = await UserDisplayNameService.GetNombreAsync(entrada.IdUsuario); }
     private void Volver() => Nav.NavigateTo("/entradas"); private void Editar() => Nav.NavigateTo($"/entradas/editar/{Id}");
 }

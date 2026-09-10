@@ -1,0 +1,103 @@
+@page "/admin/establecimientos/nuevo"
+@page "/admin/establecimientos/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+
+@using BodegaDESAM.Services
+
+@inject EstablecimientoService EstablecimientoService
+@inject NavigationManager Nav
+
+<h3 class="page-title mb-3">@Titulo</h3>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<EditForm Model="establecimiento" OnValidSubmit="GuardarAsync" FormName="EstablecimientoForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="card-section p-3 mb-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-8">
+                <label class="form-label" for="nombre-establecimiento">Nombre *</label>
+                <InputText id="nombre-establecimiento" class="form-control" @bind-Value="establecimiento.Nombre" maxlength="200" autocomplete="off" />
+                <ValidationMessage For="@(() => establecimiento.Nombre)" />
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@busy">
+            @if (busy)
+            {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                <span>Guardando...</span>
+            }
+            else
+            {
+                <span>Guardar</span>
+            }
+        </button>
+        <button type="button" class="btn btn-secondary" @onclick="Volver" disabled="@busy">Cancelar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Establecimiento establecimiento { get; set; } = new();
+
+    private bool busy;
+    private string? error;
+
+    private string Titulo => Id.HasValue ? "Editar establecimiento" : "Nuevo establecimiento";
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var loading = LoadingState.Begin();
+
+        if (!Id.HasValue)
+            return;
+
+        var existente = await EstablecimientoService.GetByIdAsync(Id.Value);
+        if (existente is null)
+        {
+            error = "El establecimiento no existe o fue eliminado.";
+            return;
+        }
+
+        establecimiento = existente;
+    }
+
+    private async Task GuardarAsync()
+    {
+        error = null;
+        busy = true;
+        using var loading = LoadingState.Begin();
+
+        try
+        {
+            if (Id.HasValue)
+                await EstablecimientoService.UpdateAsync(establecimiento);
+            else
+                await EstablecimientoService.CreateAsync(establecimiento);
+
+            Nav.NavigateTo("/admin/establecimientos");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void Volver() => Nav.NavigateTo("/admin/establecimientos");
+}

@@ -53,6 +53,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         marcas = await MarcaService.GetAllAsync();
     }
 

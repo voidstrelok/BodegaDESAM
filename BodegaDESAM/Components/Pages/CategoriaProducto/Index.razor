@@ -68,12 +68,14 @@ else
 
     async Task CargarAsync()
     {
+        using var loading = LoadingState.Begin();
         categorias = await Service.GetAllAsync();
     }
 
     async Task Eliminar(long id)
     {
         error = null;
+        using var loading = LoadingState.Begin();
         try
         {
             await Service.DeleteAsync(id);

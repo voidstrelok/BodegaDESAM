@@ -220,6 +220,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         bodegas = await BodegaService.GetAllAsync();
         proveedores = await ProveedorService.GetAllAsync();
         productos = await ProductoService.GetAllAsync();
@@ -276,6 +277,7 @@
             return;
 
         Busy = true;
+        using var loading = LoadingState.Begin();
         try
         {
             if (Id == null)

@@ -193,6 +193,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         bodegas = await BodegaService.GetAllAsync();
         establecimientos = await EstablecimientoService.GetAllAsync();
 
@@ -234,6 +235,7 @@
     private async Task OnBodegaChangedAsync()
     {
         ErrorGuardar = null;
+        using var loading = LoadingState.Begin();
         await CargarSkusDisponiblesAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -327,6 +329,7 @@
     private async Task OnSkuChangedAsync(DetalleSalida d, string skuKey)
     {
         ErrorGuardar = null;
+        using var loading = LoadingState.Begin();
 
         if (string.IsNullOrWhiteSpace(skuKey))
         {
@@ -375,6 +378,7 @@
     private async Task OnCantidadChangedAsync(DetalleSalida d, int cantidad)
     {
         ErrorGuardar = null;
+        using var loading = LoadingState.Begin();
         d.Cantidad = cantidad;
 
         if (d.id_producto > 0)
@@ -450,6 +454,7 @@
 
         try
         {
+            using var loading = LoadingState.Begin();
             if (Id == null)
             {
                 var auth = await AuthStateProvider.GetAuthenticationStateAsync();

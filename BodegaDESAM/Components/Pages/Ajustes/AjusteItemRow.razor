@@ -59,6 +59,13 @@
         @if (Item.TipoAjuste == TipoAjuste.Aumento)
         {
             <div class="col-6 col-md-3">
+                <label class="form-label form-label-sm">Lote (opcional)</label>
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Ej: L2024-001" maxlength="50"
+                       @bind="LoteInput" @bind:event="oninput"
+                       @bind:after="NotifyLoteChanged" />
+            </div>
+            <div class="col-6 col-md-3">
                 <label class="form-label form-label-sm">Fecha Vencimiento</label>
                 <input type="date" class="form-control form-control-sm"
                        value="@(Item.FechaVencimiento?.ToString("yyyy-MM-dd") ?? "")"
@@ -89,6 +96,8 @@
     [Parameter] public string SerieInput { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> SerieInputChanged { get; set; }
     [Parameter] public string? ErrorSerie { get; set; }
+    [Parameter] public string LoteInput { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> LoteInputChanged { get; set; }
 
     private void OnFechaVencimientoChanged(ChangeEventArgs e)
     {
@@ -98,16 +107,19 @@
             Item.FechaVencimiento = null;
     }
 
-    private void OnTipoAjusteChanged()
+    private async Task OnTipoAjusteChanged()
     {
         if (Item.TipoAjuste != TipoAjuste.Aumento)
         {
             Item.FechaVencimiento = null;
-            SerieInputChanged.InvokeAsync(string.Empty);
+            Item.id_lote = null;
+            await SerieInputChanged.InvokeAsync(string.Empty);
+            await LoteInputChanged.InvokeAsync(string.Empty);
         }
     }
 
     private Task NotifySerieChanged() => SerieInputChanged.InvokeAsync(SerieInput);
+    private Task NotifyLoteChanged() => LoteInputChanged.InvokeAsync(LoteInput);
 
     private string GetOrigenKey() => Item.id_detalle_entrada_origen.HasValue ? $"E{Item.id_detalle_entrada_origen}" : Item.id_detalle_ajuste_origen.HasValue ? $"A{Item.id_detalle_ajuste_origen}" : string.Empty;
     private void OnOrigenChanged(ChangeEventArgs e)

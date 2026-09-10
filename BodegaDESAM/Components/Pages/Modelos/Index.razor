@@ -55,6 +55,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        using var loading = LoadingState.Begin();
         modelos = await ModeloService.GetAllAsync();
     }
 
