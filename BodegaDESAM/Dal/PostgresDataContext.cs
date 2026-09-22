@@ -30,6 +30,8 @@ namespace BodegaDESAM
         public virtual DbSet<AuditLog> AuditLog { get; set; }
         public virtual DbSet<AjusteInventario> AjusteInventario { get; set; }
         public virtual DbSet<DetalleAjuste> DetalleAjuste { get; set; }
+        public virtual DbSet<UsuarioBodega> UsuarioBodega { get; set; }
+        public virtual DbSet<AlertaStock> AlertaStock { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -61,6 +63,8 @@ namespace BodegaDESAM
             modelBuilder.ApplyConfiguration(new BodegaEntityTypeConfiguration());
             modelBuilder.ApplyConfiguration(new UbicacionEntityTypeConfiguration());
             modelBuilder.ApplyConfiguration(new LoteEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new UsuarioBodegaEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new AlertaStockEntityTypeConfiguration());
 
             modelBuilder.Entity<AuditLog>(e =>
             {
@@ -68,6 +72,11 @@ namespace BodegaDESAM
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).UseIdentityByDefaultColumn();
                 e.Property(x => x.FechaHora).HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+                e.HasIndex(x => x.FechaHora);
+                e.HasIndex(x => x.UsuarioId);
+                e.HasIndex(x => new { x.Entidad, x.Accion });
+                e.HasIndex(x => x.BodegaId);
+                e.HasOne(x => x.Bodega).WithMany().HasForeignKey(x => x.BodegaId).OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<AjusteInventario>(e =>
@@ -93,6 +102,9 @@ namespace BodegaDESAM
                 e.HasOne(x => x.DetalleEntradaOrigen).WithMany().HasForeignKey(x => x.id_detalle_entrada_origen).OnDelete(DeleteBehavior.NoAction);
                 e.HasOne(x => x.DetalleAjusteOrigen).WithMany(x => x.DisminucionesOrigen).HasForeignKey(x => x.id_detalle_ajuste_origen).OnDelete(DeleteBehavior.NoAction);
                 e.Property(x => x.FechaVencimiento).HasColumnType("date").HasConversion(typeof(DateOnlyValueConverter), typeof(DateOnlyValueComparer));
+                e.Property(x => x.ValorUnitario)
+                    .HasColumnName("valor_unitario")
+                    .HasColumnType("bigint");
             });
         }
     }

@@ -3,15 +3,23 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
 
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using BodegaDESAM.Models.Admin
+@using BodegaDESAM.Services
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using System.Security.Cryptography
 
 @inject UserManager<IdentityUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
+@inject BodegaService BodegaService
+@inject UsuarioBodegaService UsuarioBodegaService
+@inject IDbContextFactory<PostgresDataContext> DbFactory
 
-<h3 class="page-title mb-3">Usuarios</h3>
+<div class="users-page-header">
+    <div><span class="movement-kind">Administración</span><h3 class="page-title mb-1">Usuarios y accesos</h3><p class="page-subtitle mb-0">Gestiona perfiles, roles y las bodegas a las que puede acceder cada persona.</p></div>
+    @if (users is not null) { <span class="users-count"><i class="bi bi-people-fill"></i>@totalUsers usuario(s)</span> }
+</div>
 
 <AuthorizeView>
     <Authorized Context="auth">
@@ -30,7 +38,10 @@
     <div class="alert alert-success" role="alert">@success</div>
 }
 
-<div class="card-section p-3 mb-3">
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por email, usuario o nombre..." AriaLabel="Buscar usuarios" /></div>
+
+<div class="card-section users-create-card p-3 mb-4">
+    <div class="users-section-heading"><div class="users-section-icon"><i class="bi bi-person-plus-fill"></i></div><div><h5>Nuevo usuario</h5><p>El acceso inicial se puede ajustar después por bodega.</p></div></div>
     <EditForm Model="create" OnValidSubmit="CreateUserAsync">
         <DataAnnotationsValidator />
         <ValidationSummary />
@@ -85,11 +96,12 @@
 }
 else
 {
-    <div class="card-section p-2">
-        <table class="table table-sm table-hover align-middle mb-0">
+    <div class="card-section users-table-card p-2">
+        <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0 users-table">
             <thead>
                 <tr>
                     <th>Email/Usuario</th>
+                    <th>Bodegas asignadas</th>
                     <th>Roles</th>
                     <th style="width: 420px;">Acciones</th>
                 </tr>
@@ -98,7 +110,7 @@ else
                 @foreach (var u in users)
                 {
                     <tr>
-                        <td>
+                        <td class="users-warehouses-cell">
                             @if (!u.IsEditing)
                             {
                                 <div class="fw-semibold">@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</div>
@@ -130,13 +142,29 @@ else
                             }
                         </td>
                         <td>
+                            @if (u.Roles.Contains(BodegaDESAM.Auth.AppRoles.Admin))
+                            {
+                                <span class="badge text-bg-primary"><i class="bi bi-shield-check me-1"></i>Todas las bodegas</span>
+                            }
+                            else
+                            {
+                                @foreach (var bodega in bodegas)
+                                {
+                                    <div class="form-check form-check-inline users-warehouse-check">
+                                        <input class="form-check-input" type="checkbox" checked="@EstaAsignada(u.Id, bodega.Id)" @onchange="e => CambiarBodegaAsync(u.Id, bodega.Id, e)" id="@($"ub-{u.Id}-{bodega.Id}")" />
+                                        <label class="form-check-label small" for="@($"ub-{u.Id}-{bodega.Id}")">@bodega.Nombre</label>
+                                    </div>
+                                }
+                            }
+                        </td>
+                        <td class="users-roles-cell">
                             @if (u.Roles.Count == 0)
                             {
                                 <span class="text-muted">(sin roles)</span>
                             }
                             else
                             {
-                                <span>@string.Join(", ", u.Roles)</span>
+                                @foreach (var role in u.Roles) { <span class="badge text-bg-light border me-1">@role</span> }
                             }
                         </td>
                         <td>
@@ -167,15 +195,21 @@ else
                     </tr>
                 }
             </tbody>
-        </table>
+        </table></div>
+        @if (userPage is not null) { <PaginationControls Page="@userPage.Page" TotalPages="@userPage.TotalPages" TotalItems="@userPage.TotalItems" PageSize="@userPage.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /> }
     </div>
 }
 
 @code {
     List<UserWithRolesVm>? users;
+    PagedResult<UserWithRolesVm>? userPage;
+    readonly PageRequest request = new();
+    int totalUsers;
     List<string> allRoles = new();
     Dictionary<string, string> roleSelection = new();
     Dictionary<string, UserWithRolesVm> original = new();
+    List<Bodega> bodegas = new();
+    Dictionary<string, HashSet<int>> bodegasPorUsuario = new();
 
     string? error;
     string? success;
@@ -194,15 +228,34 @@ else
         error = null;
         success = null;
 
+        try
+        {
         allRoles = RoleManager.Roles.Select(r => r.Name!).OrderBy(r => r).ToList();
+        bodegas = await BodegaService.GetAllAsync();
         if (allRoles.Count == 0)
             allRoles = new() { BodegaDESAM.Auth.AppRoles.Admin, BodegaDESAM.Auth.AppRoles.Bodega, BodegaDESAM.Auth.AppRoles.Lectura };
 
         if (string.IsNullOrWhiteSpace(create.Role))
             create.Role = allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura;
 
+        using var db = DbFactory.CreateDbContext();
+        var userQuery = db.Users.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var texto = request.Search.Trim();
+            userQuery = userQuery.Where(u =>
+                EF.Functions.ILike(u.Email ?? string.Empty, $"%{texto}%") ||
+                EF.Functions.ILike(u.UserName ?? string.Empty, $"%{texto}%") ||
+                db.UserClaims.Any(c => c.UserId == u.Id &&
+                    (c.ClaimType == "given_name" || c.ClaimType == "family_name" || c.ClaimType == "maternal_family_name") &&
+                    EF.Functions.ILike(c.ClaimValue ?? string.Empty, $"%{texto}%")));
+        }
+
+        totalUsers = await userQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalUsers / (double)request.PageSize));
+        request.Page = Math.Min(Math.Max(1, request.Page), totalPages);
         var list = new List<UserWithRolesVm>();
-        foreach (var u in UserManager.Users.OrderBy(u => u.Email).ToList())
+        foreach (var u in await userQuery.OrderBy(u => u.Email).ThenBy(u => u.Id).Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToListAsync())
         {
             var roles = await UserManager.GetRolesAsync(u);
             var claims = await UserManager.GetClaimsAsync(u);
@@ -221,12 +274,37 @@ else
             });
 
             roleSelection[u.Id] = roles.FirstOrDefault() ?? allRoles.FirstOrDefault() ?? BodegaDESAM.Auth.AppRoles.Lectura;
+            bodegasPorUsuario[u.Id] = await UsuarioBodegaService.GetAsignadasAsync(u.Id);
         }
 
         users = list;
+        userPage = new PagedResult<UserWithRolesVm>(users, totalUsers, request.Page, request.PageSize);
         original = users.ToDictionary(
             u => u.Id,
             u => new UserWithRolesVm { Id = u.Id, UserName = u.UserName, Email = u.Email, Nombre = u.Nombre, Apellido = u.Apellido, ApellidoMaterno = u.ApellidoMaterno, Roles = u.Roles.ToList() });
+        }
+        catch (Exception ex)
+        {
+            users = new();
+            error = ex.Message.Contains("usuario_bodega", StringComparison.OrdinalIgnoreCase)
+                ? "Falta aplicar la migración de multi-bodega en la base de datos. Ejecuta las migraciones y vuelve a cargar la página."
+                : "No fue posible cargar los usuarios. " + ex.Message;
+        }
+    }
+
+    async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await LoadAsync(); }
+    async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await LoadAsync(); }
+    async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await LoadAsync(); }
+
+    bool EstaAsignada(string idUsuario, int idBodega) => bodegasPorUsuario.TryGetValue(idUsuario, out var ids) && ids.Contains(idBodega);
+
+    async Task CambiarBodegaAsync(string idUsuario, int idBodega, ChangeEventArgs args)
+    {
+        var seleccionadas = bodegasPorUsuario.TryGetValue(idUsuario, out var actuales) ? new HashSet<int>(actuales) : new();
+        var marcada = args.Value is bool valor && valor;
+        if (marcada) seleccionadas.Add(idBodega); else seleccionadas.Remove(idBodega);
+        await UsuarioBodegaService.ReemplazarAsync(idUsuario, seleccionadas);
+        bodegasPorUsuario[idUsuario] = seleccionadas;
     }
 
     void EditUser(string userId)
@@ -383,6 +461,12 @@ else
             if (!string.IsNullOrWhiteSpace(create.Role))
             {
                 await UserManager.AddToRoleAsync(user, create.Role);
+                if (create.Role != BodegaDESAM.Auth.AppRoles.Admin)
+                {
+                    var principal = (await BodegaService.GetAllAsync()).FirstOrDefault(b => b.EsPrincipal);
+                    if (principal is not null)
+                        await UsuarioBodegaService.ReemplazarAsync(user.Id, new[] { principal.Id });
+                }
             }
 
             var nombre = create.Nombre?.Trim();

@@ -38,12 +38,12 @@ namespace BodegaDESAM.Services
             _inventarioService = inventarioService;
         }
 
-        public async Task<List<AlertaDto>> GetAlertasActivasAsync()
+        public async Task<List<AlertaDto>> GetAlertasActivasAsync(int? idBodega = null)
         {
             var alertas = new List<AlertaDto>();
 
-            alertas.AddRange(await GetAlertasStockBajoAsync());
-            alertas.AddRange(await GetAlertasLotesPorVencerAsync());
+            alertas.AddRange(await GetAlertasStockBajoAsync(idBodega));
+            alertas.AddRange(await GetAlertasLotesPorVencerAsync(idBodega));
 
             return alertas;
         }
@@ -59,32 +59,36 @@ namespace BodegaDESAM.Services
         }
 
         /// <summary>
-        /// Productos cuyo stock actual es igual o inferior al StockMinimo definido.
+        /// Productos cuyo stock actual es igual o inferior al umbral configurado para la bodega.
         /// </summary>
-        public async Task<List<AlertaDto>> GetAlertasStockBajoAsync()
+        public async Task<List<AlertaDto>> GetAlertasStockBajoAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
 
-            var productosConMinimo = await db.Producto
-                .AsNoTracking()
-                .Where(p => p.StockMinimo.HasValue && p.StockMinimo.Value > 0)
-                .Select(p => new { p.Id, p.Nombre, p.StockMinimo })
-                .ToListAsync();
-
-            if (productosConMinimo.Count == 0)
+            if (!idBodega.HasValue || idBodega.Value <= 0)
                 return new List<AlertaDto>();
 
-            var inventario = await _inventarioService.GetInventarioActualAsync();
+            var configuraciones = await db.AlertaStock
+                .AsNoTracking()
+                .Include(a => a.Producto)
+                .Where(a => a.IdBodega == idBodega.Value)
+                .Select(a => new { a.Id, a.IdProducto, Nombre = a.Producto.Nombre, a.StockMinimo })
+                .ToListAsync();
+
+            if (configuraciones.Count == 0)
+                return new List<AlertaDto>();
+
+            var inventario = await _inventarioService.GetInventarioActualAsync(idBodega);
 
             var alertas = new List<AlertaDto>();
 
-            foreach (var producto in productosConMinimo)
+            foreach (var configuracion in configuraciones)
             {
                 var stockActual = inventario
-                    .Where(i => i.IdProducto == producto.Id)
+                    .Where(i => i.IdProducto == configuracion.IdProducto)
                     .Sum(i => i.StockActual);
 
-                if (stockActual <= producto.StockMinimo!.Value)
+                if (stockActual <= configuracion.StockMinimo)
                 {
                     var severidad = stockActual == 0
                         ? SeveridadAlerta.Critica
@@ -95,9 +99,9 @@ namespace BodegaDESAM.Services
                         TipoAlerta = "StockBajo",
                         Severidad = severidad,
                         Mensaje = stockActual == 0
-                            ? $"Sin stock: '{producto.Nombre}' (mínimo: {producto.StockMinimo})"
-                            : $"Stock bajo: '{producto.Nombre}' — actual: {stockActual}, mínimo: {producto.StockMinimo}",
-                        IdReferencia = producto.Id
+                            ? $"Sin stock: '{configuracion.Nombre}' (mínimo: {configuracion.StockMinimo})"
+                            : $"Stock bajo: '{configuracion.Nombre}' — actual: {stockActual}, mínimo: {configuracion.StockMinimo}",
+                        IdReferencia = configuracion.IdProducto
                     });
                 }
             }
@@ -109,7 +113,7 @@ namespace BodegaDESAM.Services
         /// Lotes con FechaVencimiento dentro de los próximos 30 días (o ya vencidos),
         /// y DetalleEntrada con FechaVencimiento directa (sin lote o lote sin fecha).
         /// </summary>
-        public async Task<List<AlertaDto>> GetAlertasLotesPorVencerAsync()
+        public async Task<List<AlertaDto>> GetAlertasLotesPorVencerAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
 
@@ -122,7 +126,9 @@ namespace BodegaDESAM.Services
             var lotesPorVencer = await db.Lote
                 .AsNoTracking()
                 .Include(l => l.Producto)
-                .Where(l => l.FechaVencimiento.HasValue && l.FechaVencimiento.Value <= limite)
+                .Where(l => l.FechaVencimiento.HasValue && l.FechaVencimiento.Value <= limite
+                    && (!idBodega.HasValue || db.DetalleEntrada.Any(d => d.id_lote == l.Id && d.Entrada.id_bodega == idBodega)
+                        || db.DetalleAjuste.Any(d => d.id_lote == l.Id && d.Ajuste.id_bodega == idBodega)))
                 .OrderBy(l => l.FechaVencimiento)
                 .ToListAsync();
 
@@ -131,7 +137,7 @@ namespace BodegaDESAM.Services
                 ? new Dictionary<long, int>()
                 : await db.DetalleEntrada
                     .AsNoTracking()
-                    .Where(d => d.id_lote.HasValue && loteIds.Contains(d.id_lote.Value))
+                    .Where(d => d.id_lote.HasValue && loteIds.Contains(d.id_lote.Value) && (!idBodega.HasValue || d.Entrada.id_bodega == idBodega))
                     .GroupBy(d => d.id_lote!.Value)
                     .Select(g => new
                     {
@@ -146,7 +152,7 @@ namespace BodegaDESAM.Services
                     .AsNoTracking()
                     .Where(d => d.TipoAjuste == TipoAjuste.Aumento
                         && d.id_lote.HasValue
-                        && loteIds.Contains(d.id_lote.Value))
+                        && loteIds.Contains(d.id_lote.Value) && (!idBodega.HasValue || d.Ajuste.id_bodega == idBodega))
                     .GroupBy(d => d.id_lote!.Value)
                     .Select(g => new
                     {
@@ -180,7 +186,7 @@ namespace BodegaDESAM.Services
                 .AsNoTracking()
                 .Include(d => d.Producto)
                 .Include(d => d.Lote)
-                .Where(d => d.FechaVencimiento.HasValue
+                .Where(d => d.FechaVencimiento.HasValue && (!idBodega.HasValue || d.Entrada.id_bodega == idBodega)
                     && d.FechaVencimiento.Value <= limite
                     && (d.id_lote == null || d.Lote!.FechaVencimiento == null))
                 .GroupBy(d => new { d.id_producto, d.FechaVencimiento })
@@ -217,7 +223,7 @@ namespace BodegaDESAM.Services
             var ajustesPorVencer = await db.DetalleAjuste
                 .AsNoTracking()
                 .Include(d => d.Producto)
-                .Where(d => d.TipoAjuste == TipoAjuste.Aumento
+                .Where(d => d.TipoAjuste == TipoAjuste.Aumento && (!idBodega.HasValue || d.Ajuste.id_bodega == idBodega)
                     && d.FechaVencimiento.HasValue
                     && d.FechaVencimiento.Value <= limite)
                 .GroupBy(d => new { d.id_producto, d.FechaVencimiento })

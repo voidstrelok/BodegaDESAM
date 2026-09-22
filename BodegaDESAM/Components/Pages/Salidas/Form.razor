@@ -17,6 +17,7 @@
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
+@inject BodegaContextService BodegaContext
 
 <div class="movement-form-header">
     <div>
@@ -194,12 +195,12 @@
     protected override async Task OnInitializedAsync()
     {
         using var loading = LoadingState.Begin();
-        bodegas = await BodegaService.GetAllAsync();
+        bodegas = (await BodegaContext.GetBodegasPermitidasAsync()).ToList();
         establecimientos = await EstablecimientoService.GetAllAsync();
 
         if (Id != null)
         {
-            var existente = await SalidaService.GetByIdAsync(Id.Value);
+            var existente = await SalidaService.GetByIdAsync(Id.Value, await BodegaContext.GetBodegaActivaAsync());
             if (existente != null)
             {
                 salida = existente;
@@ -208,12 +209,7 @@
         }
         else
         {
-            // Asignar bodega principal por defecto
-            var bodegaPrincipal = bodegas.FirstOrDefault(b => b.EsPrincipal);
-            if (bodegaPrincipal != null)
-            {
-                salida.id_bodega = bodegaPrincipal.Id;
-            }
+            salida.id_bodega = await BodegaContext.GetBodegaActivaAsync() ?? 0;
         }
 
         await CargarSkusDisponiblesAsync();

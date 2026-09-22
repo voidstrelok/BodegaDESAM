@@ -21,21 +21,43 @@ namespace BodegaDESAM.Services
             _serieService = serieService;
         }
 
-        public async Task<List<AjusteInventario>> GetAllAsync()
+        public async Task<List<AjusteInventario>> GetAllAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
-            return await db.AjusteInventario
+            var query = db.AjusteInventario
                 .Include(a => a.Bodega)
                 .Include(a => a.DetalleAjuste)
                     .ThenInclude(d => d.Producto)
                 .Include(a => a.DetalleAjuste)
                     .ThenInclude(d => d.Marca)
-                .OrderByDescending(a => a.Fecha)
-                .ThenByDescending(a => a.Id)
-                .ToListAsync();
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(a => a.id_bodega == idBodega);
+            return await query.OrderByDescending(a => a.Fecha).ThenByDescending(a => a.Id).ToListAsync();
         }
 
-        public async Task<AjusteInventario?> GetByIdAsync(int id)
+        public async Task<PagedResult<AjusteInventario>> GetPageAsync(int? idBodega, PageRequest request, CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+            var query = db.AjusteInventario
+                .AsNoTracking()
+                .Include(a => a.Bodega)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Producto)
+                .Include(a => a.DetalleAjuste)
+                    .ThenInclude(d => d.Marca)
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(a => a.id_bodega == idBodega);
+            int? id = int.TryParse(request.Search, out var parsedId) ? parsedId : null;
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(a =>
+                    EF.Functions.ILike(a.Bodega.Nombre, $"%{request.Search}%") ||
+                    EF.Functions.ILike(a.Motivo ?? string.Empty, $"%{request.Search}%") ||
+                    EF.Functions.ILike(a.Observacion ?? string.Empty, $"%{request.Search}%") ||
+                    (id.HasValue && a.Id == id.Value));
+            return await query.OrderByDescending(a => a.Fecha).ThenByDescending(a => a.Id).ToPagedAsync(request, cancellationToken);
+        }
+
+        public async Task<AjusteInventario?> GetByIdAsync(int id, int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
             return await db.AjusteInventario
@@ -54,7 +76,7 @@ namespace BodegaDESAM.Services
                 .Include(a => a.DetalleAjuste)
                     .ThenInclude(d => d.DetalleAjusteOrigen)
                         .ThenInclude(o => o!.Ajuste)
-                .FirstOrDefaultAsync(a => a.Id == id);
+                .FirstOrDefaultAsync(a => a.Id == id && (!idBodega.HasValue || a.id_bodega == idBodega));
         }
 
         /// <summary>
@@ -91,7 +113,7 @@ namespace BodegaDESAM.Services
             }
 
             await _audit.RegistrarAsync(ajuste.IdUsuario, AuditAcciones.Crear, AuditEntidades.AjusteInventario, ajuste.Id,
-                new { ajuste.Motivo, items = ajuste.DetalleAjuste.Count });
+                new { ajuste.Motivo, items = ajuste.DetalleAjuste.Count }, bodegaId: ajuste.id_bodega);
         }
 
         private static void ValidarAjuste(AjusteInventario ajuste)
@@ -106,6 +128,9 @@ namespace BodegaDESAM.Services
 
                 if (detalle.id_modelo.HasValue && detalle.id_modelo.Value <= 0)
                     throw new InvalidOperationException("El modelo seleccionado no es válido.");
+                if (detalle.TipoAjuste == TipoAjuste.Aumento && (!detalle.ValorUnitario.HasValue || detalle.ValorUnitario.Value <= 0))
+                    throw new InvalidOperationException("El valor unitario debe ser mayor a 0 en todos los aumentos.");
+
                 if (detalle.TipoAjuste == TipoAjuste.Disminucion &&
                     (detalle.id_detalle_entrada_origen.HasValue == detalle.id_detalle_ajuste_origen.HasValue))
                     throw new InvalidOperationException("Cada disminución debe seleccionar exactamente un origen de stock.");
@@ -237,7 +262,7 @@ namespace BodegaDESAM.Services
             db.AjusteInventario.Remove(ajuste);
             await db.SaveChangesAsync();
 
-            await _audit.RegistrarAsync(usuarioId, AuditAcciones.Eliminar, AuditEntidades.AjusteInventario, id);
+            await _audit.RegistrarAsync(usuarioId, AuditAcciones.Eliminar, AuditEntidades.AjusteInventario, id, bodegaId: ajuste.id_bodega);
         }
     }
 }

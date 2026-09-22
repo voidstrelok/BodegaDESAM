@@ -1,0 +1,20 @@
+@page "/alertas-stock/nueva"
+@page "/alertas-stock/editar/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+@using BodegaDESAM.Services
+@inject AlertaStockService Service
+@inject ProductoService ProductoService
+@inject BodegaContextService BodegaContext
+@inject BodegaService BodegaService
+@inject NavigationManager Nav
+
+<div class="page-header"><div><h3 class="page-title m-0">@(Id.HasValue ? "Editar alerta de stock" : "Nueva alerta de stock")</h3><p class="page-subtitle mb-0">La alerta se aplicará sólo a <strong>@nombreBodega</strong>.</p></div></div>
+@if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger">@error</div> }
+<EditForm Model="alerta" OnValidSubmit="GuardarAsync" class="card-section p-3"><DataAnnotationsValidator /><ValidationSummary /><div class="row g-3"><div class="col-12 col-md-7"><label class="form-label">Producto</label><InputSelect class="form-select" @bind-Value="alerta.IdProducto" disabled="@Id.HasValue"><option value="0">-- Seleccionar producto --</option>@foreach (var producto in productos) { <option value="@producto.Id">@producto.Nombre</option> }</InputSelect></div><div class="col-12 col-md-5"><label class="form-label">Stock mínimo</label><InputNumber class="form-control" @bind-Value="alerta.StockMinimo" min="1" /><div class="form-text">Se avisará cuando el stock sea igual o menor a este valor.</div></div></div><div class="mt-4"><button class="btn btn-primary" disabled="@guardando">@(guardando ? "Guardando..." : "Guardar alerta")</button><button type="button" class="btn btn-secondary ms-2" @onclick="Volver">Cancelar</button></div></EditForm>
+@code {
+    [Parameter] public int? Id { get; set; } private AlertaStock alerta = new(); private List<Producto> productos = new(); private int? idBodega; private string nombreBodega = "la bodega activa"; private string? error; private bool guardando;
+    protected override async Task OnInitializedAsync() { idBodega = await BodegaContext.GetBodegaActivaAsync(); productos = await ProductoService.GetAllAsync(); if (idBodega.HasValue) { nombreBodega = (await BodegaService.GetByIdAsync(idBodega.Value))?.Nombre ?? nombreBodega; alerta.IdBodega = idBodega.Value; } if (Id.HasValue && idBodega.HasValue) { var existente = await Service.GetByIdAsync(Id.Value, idBodega.Value); if (existente is null) { error = "La alerta no existe o no pertenece a la bodega activa."; } else alerta = existente; } }
+    async Task GuardarAsync() { if (!idBodega.HasValue) { error = "No tienes una bodega activa asignada."; return; } guardando = true; error = null; try { alerta.IdBodega = idBodega.Value; if (Id.HasValue) await Service.UpdateAsync(alerta, idBodega.Value); else await Service.CreateAsync(alerta); Nav.NavigateTo("/alertas-stock"); } catch (Exception ex) { error = ex.Message; } finally { guardando = false; } }
+    void Volver() => Nav.NavigateTo("/alertas-stock");
+}

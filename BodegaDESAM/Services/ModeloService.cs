@@ -25,6 +25,16 @@ namespace BodegaDESAM.Services
                 .ToListAsync();
         }
 
+        public async Task<PagedResult<Modelo>> GetPageAsync(PageRequest request, CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+            var query = db.Modelo.AsNoTracking().Include(m => m.Marca).AsQueryable();
+            long? id = long.TryParse(request.Search, out var parsedId) ? parsedId : null;
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(m => EF.Functions.ILike(m.Nombre, $"%{request.Search}%") || EF.Functions.ILike(m.Marca.Nombre, $"%{request.Search}%") || (id.HasValue && m.Id == id.Value));
+            return await query.OrderBy(m => m.Marca.Nombre).ThenBy(m => m.Nombre).ThenBy(m => m.Id).ToPagedAsync(request, cancellationToken);
+        }
+
         /// <summary>
         /// Obtiene modelos filtrados por marca
         /// </summary>

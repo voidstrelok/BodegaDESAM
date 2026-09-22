@@ -18,6 +18,7 @@
 @inject AlertaService AlertaService
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
+@inject BodegaContextService BodegaContext
 
 <div class="movement-form-header">
     <div>
@@ -105,6 +106,7 @@
                 <th>Modelo</th>
                 <th>Lote (opcional)</th>
                 <th>Cantidad</th>
+                <th>Valor unitario (CLP)</th>
                 <th>Fecha Vencimiento</th>
                 <th style="min-width: 260px">N° Serie (opcional)</th>
                 <th>Acciones</th>
@@ -153,6 +155,10 @@
                     <td>
                         <InputNumber class="form-control" @bind-Value="detalle.Cantidad" disabled="@DetalleBloqueado" />
                         <ValidationMessage For="@(() => detalle.Cantidad)" />
+                    </td>
+                    <td>
+                        <InputNumber class="form-control" @bind-Value="detalle.ValorUnitario" disabled="@DetalleBloqueado" />
+                        <ValidationMessage For="@(() => detalle.ValorUnitario)" />
                     </td>
                     <td>
                         <InputDate class="form-control" @bind-Value="detalle.FechaVencimiento" disabled="@DetalleBloqueado" />
@@ -221,7 +227,7 @@
     protected override async Task OnInitializedAsync()
     {
         using var loading = LoadingState.Begin();
-        bodegas = await BodegaService.GetAllAsync();
+        bodegas = (await BodegaContext.GetBodegasPermitidasAsync()).ToList();
         proveedores = await ProveedorService.GetAllAsync();
         productos = await ProductoService.GetAllAsync();
         marcas = await MarcaService.GetAllAsync();
@@ -229,7 +235,7 @@
 
         if (Id != null)
         {
-            var existente = await EntradaService.GetByIdAsync(Id.Value);
+            var existente = await EntradaService.GetByIdAsync(Id.Value, await BodegaContext.GetBodegaActivaAsync());
             if (existente != null)
             {
                 entrada = existente;
@@ -245,12 +251,7 @@
         {
             Titulo = "Nueva Entrada";
 
-            // Asignar bodega principal por defecto
-            var bodegaPrincipal = bodegas.FirstOrDefault(b => b.EsPrincipal);
-            if (bodegaPrincipal != null)
-            {
-                entrada.id_bodega = bodegaPrincipal.Id;
-            }
+            entrada.id_bodega = await BodegaContext.GetBodegaActivaAsync() ?? 0;
         }
 
         foreach (var d in entrada.DetalleEntrada)
@@ -291,7 +292,7 @@
             }
             else
             {
-                var existente = await EntradaService.GetByIdAsync(Id.Value);
+                var existente = await EntradaService.GetByIdAsync(Id.Value, await BodegaContext.GetBodegaActivaAsync());
                 if (existente != null)
                 {
                     if (!DetalleBloqueado)

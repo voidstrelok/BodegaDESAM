@@ -7,6 +7,7 @@
 @inject UserDisplayNameService UserDisplayNameService
 @inject ProductoSerieService ProductoSerieService
 @inject NavigationManager Nav
+@inject BodegaContextService BodegaContext
 
 @if (salida == null) { <p>Cargando...</p> }
 else
@@ -19,6 +20,6 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private Salida? salida; private string? usuario; private Dictionary<int, List<string>> seriesPorProducto = new();
-    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); salida = await SalidaService.GetByIdAsync(Id); if (salida == null) { Nav.NavigateTo("/salidas"); return; } usuario = await UserDisplayNameService.GetNombreAsync(salida.IdUsuario); var series = await ProductoSerieService.GetSeriesPorSalidaAsync(Id); seriesPorProducto = series.GroupBy(x => x.id_producto).ToDictionary(g => g.Key, g => g.Select(x => x.Serie).OrderBy(x => x).ToList()); }
+    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); salida = await SalidaService.GetByIdAsync(Id, await BodegaContext.GetBodegaActivaAsync()); if (salida == null) { Nav.NavigateTo("/salidas"); return; } usuario = await UserDisplayNameService.GetNombreAsync(salida.IdUsuario); var series = await ProductoSerieService.GetSeriesPorSalidaAsync(Id); seriesPorProducto = series.GroupBy(x => x.id_producto).ToDictionary(g => g.Key, g => g.Select(x => x.Serie).OrderBy(x => x).ToList()); }
     private void Volver() => Nav.NavigateTo("/salidas"); private void Editar() => Nav.NavigateTo($"/salidas/editar/{Id}");
 }

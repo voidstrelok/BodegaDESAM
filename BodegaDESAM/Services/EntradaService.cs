@@ -14,25 +14,47 @@ namespace BodegaDESAM.Services
             _audit = audit;
         }
 
-        public async Task<List<Entrada>> GetAllAsync()
+        public async Task<List<Entrada>> GetAllAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
-            return await db.Entrada
+            var query = db.Entrada
                 .Include(e => e.Bodega)
                 .Include(e => e.Proveedor)
                 .Include(e => e.DetalleEntrada)
-                .OrderBy(e => e.Id)
-                .ToListAsync();
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(e => e.id_bodega == idBodega);
+            return await query.OrderBy(e => e.Id).ToListAsync();
         }
 
-        public async Task<Entrada?> GetByIdAsync(int id)
+        public async Task<PagedResult<Entrada>> GetPageAsync(int? idBodega, PageRequest request, CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+            var query = db.Entrada
+                .AsNoTracking()
+                .Include(e => e.Bodega)
+                .Include(e => e.Proveedor)
+                .Include(e => e.DetalleEntrada)
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(e => e.id_bodega == idBodega);
+            int? id = int.TryParse(request.Search, out var parsedId) ? parsedId : null;
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(e =>
+                    EF.Functions.ILike(e.NDocumento ?? string.Empty, $"%{request.Search}%") ||
+                    EF.Functions.ILike(e.Proveedor.Nombre, $"%{request.Search}%") ||
+                    EF.Functions.ILike(e.Bodega.Nombre, $"%{request.Search}%") ||
+                    EF.Functions.ILike(e.Observacion ?? string.Empty, $"%{request.Search}%") ||
+                    (id.HasValue && e.Id == id.Value));
+            return await query.OrderByDescending(e => e.Fecha).ThenByDescending(e => e.Id).ToPagedAsync(request, cancellationToken);
+        }
+
+        public async Task<Entrada?> GetByIdAsync(int id, int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
             var entrada = await db.Entrada
                 .Include(e => e.Bodega)
                 .Include(e => e.Proveedor)
                 .Include(e => e.DetalleEntrada)
-                .FirstOrDefaultAsync(e => e.Id == id);
+                .FirstOrDefaultAsync(e => e.Id == id && (!idBodega.HasValue || e.id_bodega == idBodega));
 
             if (entrada is null)
                 return null;
@@ -64,7 +86,7 @@ namespace BodegaDESAM.Services
             db.Entrada.Add(entrada);
             await db.SaveChangesAsync();
             await _audit.RegistrarAsync(entrada.IdUsuario, AuditAcciones.Crear, AuditEntidades.Entrada, entrada.Id,
-                new { entrada.NDocumento, entrada.id_proveedor, Items = entrada.DetalleEntrada.Count });
+                new { entrada.NDocumento, entrada.id_proveedor, Items = entrada.DetalleEntrada.Count }, bodegaId: entrada.id_bodega);
         }
 
         public Task CreateAsync(Entrada entrada, string idUsuario)
@@ -122,7 +144,7 @@ namespace BodegaDESAM.Services
             foreach (var (recibido, creado) in nuevosDetalles)
                 recibido.Id = creado.Id;
             await _audit.RegistrarAsync(entrada.IdUsuario, AuditAcciones.Editar, AuditEntidades.Entrada, entrada.Id,
-                new { entrada.NDocumento, entrada.id_proveedor });
+                new { entrada.NDocumento, entrada.id_proveedor }, bodegaId: existente.id_bodega);
         }
 
         public async Task<bool> TieneSalidasRelacionadasAsync(int entradaId)
@@ -152,6 +174,7 @@ namespace BodegaDESAM.Services
                     original.id_lote != d.id_lote ||
                     original.id_ubicacion != d.id_ubicacion ||
                     original.Cantidad != d.Cantidad ||
+                    original.ValorUnitario != d.ValorUnitario ||
                     original.FechaVencimiento != d.FechaVencimiento;
             });
         }
@@ -186,6 +209,7 @@ namespace BodegaDESAM.Services
                         id_lote = item.id_lote,
                         id_ubicacion = item.id_ubicacion,
                         Cantidad = item.Cantidad,
+                        ValorUnitario = item.ValorUnitario,
                         FechaVencimiento = item.FechaVencimiento
                     };
                     existente.DetalleEntrada.Add(creado);
@@ -200,6 +224,7 @@ namespace BodegaDESAM.Services
                 original.id_lote = item.id_lote;
                 original.id_ubicacion = item.id_ubicacion;
                 original.Cantidad = item.Cantidad;
+                original.ValorUnitario = item.ValorUnitario;
                 original.FechaVencimiento = item.FechaVencimiento;
             }
 
@@ -230,6 +255,9 @@ namespace BodegaDESAM.Services
 
                 if (d.Cantidad <= 0)
                     throw new InvalidOperationException("La cantidad debe ser mayor a 0 en todas las filas del detalle.");
+
+                if (!d.ValorUnitario.HasValue || d.ValorUnitario.Value <= 0)
+                    throw new InvalidOperationException("El valor unitario debe ser mayor a 0 en todas las filas del detalle.");
             }
         }
 
@@ -268,7 +296,7 @@ namespace BodegaDESAM.Services
 
             db.Entrada.Remove(entrada);
             await db.SaveChangesAsync();
-            await _audit.RegistrarAsync(entrada.IdUsuario, AuditAcciones.Eliminar, AuditEntidades.Entrada, (int)id, null);
+            await _audit.RegistrarAsync(entrada.IdUsuario, AuditAcciones.Eliminar, AuditEntidades.Entrada, (int)id, null, bodegaId: entrada.id_bodega);
             return true;
         }
     }

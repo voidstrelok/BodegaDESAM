@@ -41,6 +41,9 @@ namespace BodegaDESAM
         [Range(1, long.MaxValue, ErrorMessage = "La cantidad debe ser mayor a 0")]
         public long Cantidad { get; set; }
 
+        [Range(1, long.MaxValue, ErrorMessage = "El valor unitario debe ser mayor a 0")]
+        public long? ValorUnitario { get; set; }
+
         public DateOnly? FechaVencimiento { get; set; }
 
         public virtual ICollection<ProductoSerie> ProductoSeries { get; set; } = new HashSet<ProductoSerie>();

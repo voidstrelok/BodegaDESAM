@@ -42,19 +42,41 @@ namespace BodegaDESAM.Services
                 .ToDictionaryAsync(x => x.IdProducto, x => x.Total);
         }
 
-        public async Task<List<Salida>> GetAllAsync()
+        public async Task<List<Salida>> GetAllAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
-            return await db.Salida
+            var query = db.Salida
                 .AsNoTracking()
                 .Include(s => s.Bodega)
                 .Include(s => s.EStablecimiento)
                 .Include(s => s.DetalleSalida)
-                .OrderByDescending(s => s.Id)
-                .ToListAsync();
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(s => s.id_bodega == idBodega);
+            return await query.OrderByDescending(s => s.Id).ToListAsync();
         }
 
-        public async Task<Salida?> GetByIdAsync(int id)
+        public async Task<PagedResult<Salida>> GetPageAsync(int? idBodega, PageRequest request, CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+            var query = db.Salida
+                .AsNoTracking()
+                .Include(s => s.Bodega)
+                .Include(s => s.EStablecimiento)
+                .Include(s => s.DetalleSalida)
+                .AsQueryable();
+            if (idBodega is > 0) query = query.Where(s => s.id_bodega == idBodega);
+            int? id = int.TryParse(request.Search, out var parsedId) ? parsedId : null;
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(s =>
+                    EF.Functions.ILike(s.Solicitante ?? string.Empty, $"%{request.Search}%") ||
+                    EF.Functions.ILike(s.EStablecimiento.Nombre, $"%{request.Search}%") ||
+                    EF.Functions.ILike(s.Bodega.Nombre, $"%{request.Search}%") ||
+                    EF.Functions.ILike(s.Observacion ?? string.Empty, $"%{request.Search}%") ||
+                    (id.HasValue && s.Id == id.Value));
+            return await query.OrderByDescending(s => s.Id).ToPagedAsync(request, cancellationToken);
+        }
+
+        public async Task<Salida?> GetByIdAsync(int id, int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
             return await db.Salida
@@ -81,7 +103,7 @@ namespace BodegaDESAM.Services
                     .ThenInclude(d => d.DetalleAjusteOrigen)
                         .ThenInclude(da => da!.Ajuste)
                             
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .FirstOrDefaultAsync(s => s.Id == id && (!idBodega.HasValue || s.id_bodega == idBodega));
         }
 
         public async Task CreateAsync(Salida salida)
@@ -95,7 +117,7 @@ namespace BodegaDESAM.Services
             db.Salida.Add(salida);
             await db.SaveChangesAsync();
             await _audit.RegistrarAsync(salida.IdUsuario, AuditAcciones.Crear, AuditEntidades.Salida, salida.Id,
-                new { salida.id_establecimiento, Items = salida.DetalleSalida.Count });
+                new { salida.id_establecimiento, Items = salida.DetalleSalida.Count }, bodegaId: salida.id_bodega);
         }
 
         public Task CreateAsync(Salida salida, string idUsuario)
@@ -158,7 +180,7 @@ namespace BodegaDESAM.Services
             }
             await db.SaveChangesAsync();
             await _audit.RegistrarAsync(persistida.IdUsuario, AuditAcciones.Editar, AuditEntidades.Salida, salida.Id,
-                new { salida.id_establecimiento });
+                new { salida.id_establecimiento }, bodegaId: persistida.id_bodega);
         }
 
         private static async Task ValidarStockDisponibleAsync(PostgresDataContext db, Salida salida)
@@ -271,7 +293,7 @@ namespace BodegaDESAM.Services
 
             db.Salida.Remove(salida);
             await db.SaveChangesAsync();
-            await _audit.RegistrarAsync(salida.IdUsuario, AuditAcciones.Eliminar, AuditEntidades.Salida, (int)id, null);
+            await _audit.RegistrarAsync(salida.IdUsuario, AuditAcciones.Eliminar, AuditEntidades.Salida, (int)id, null, bodegaId: salida.id_bodega);
             return true;
         }
     }

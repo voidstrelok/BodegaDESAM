@@ -28,7 +28,7 @@ services:
       ConnectionStrings__PostgresDataContext: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Search Path=BodegaDESAM;Pooling=true"
       DataProtection__KeysPath: /var/app/keys
       ReverseProxy__Enabled: "true"
-      Database__ApplyMigrationsOnStartup: "false"
+      Database__ApplyMigrationsOnStartup: "true"
     depends_on:
       db:
         condition: service_healthy

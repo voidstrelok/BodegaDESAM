@@ -24,6 +24,7 @@ namespace BodegaDESAM
         public string Entidad { get; set; } = string.Empty;
 
         public int EntidadId { get; set; }
+        public int? BodegaId { get; set; }
 
         /// <summary>Resumen JSON con los datos relevantes de la operación.</summary>
         public string? Detalle { get; set; }
@@ -32,5 +33,7 @@ namespace BodegaDESAM
 
         [StringLength(45)]
         public string? IpOrigen { get; set; }
+
+        public Bodega? Bodega { get; set; }
     }
 }

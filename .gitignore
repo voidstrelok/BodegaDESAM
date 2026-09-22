@@ -1,6 +1,10 @@
 BodegaDESAM/bin/
 BodegaDESAM/obj/
+BodegaDESAM.Tests/
 .agents/
 .github/
 .vs/
 .env
+outputs/
+tools/
+docs/

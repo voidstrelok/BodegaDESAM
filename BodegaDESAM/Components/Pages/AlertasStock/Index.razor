@@ -1,0 +1,29 @@
+@page "/alertas-stock"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
+@using BodegaDESAM.Services
+@inject AlertaStockService Service
+@inject BodegaContextService BodegaContext
+@inject BodegaService BodegaService
+@inject NavigationManager Nav
+
+<div class="page-header"><div><h3 class="page-title m-0">Alertas de stock</h3><p class="page-subtitle mb-0">Umbrales de reposición configurados para la bodega activa.</p></div><button class="btn btn-primary" @onclick="Nueva"><i class="bi bi-bell-plus me-1"></i>Nueva alerta</button></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por producto o stock mínimo..." AriaLabel="Buscar alertas de stock" /></div>
+@if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger">@error</div> }
+@if (resultado is null) { <p>Cargando...</p> }
+else if (!idBodega.HasValue) { <div class="empty-state">No tienes una bodega activa asignada.</div> }
+else if (resultado.TotalItems == 0) { <div class="empty-state"><i class="bi bi-bell-slash"></i><p class="mb-0">No hay alertas que coincidan con la búsqueda para <strong>@nombreBodega</strong>.</p></div> }
+else { <div class="card-section p-2"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Producto</th><th class="text-end">Stock mínimo</th><th class="text-end">Acciones</th></tr></thead><tbody>@foreach (var alerta in resultado.Items) { <tr><td><div class="fw-semibold">@alerta.Producto.Nombre</div></td><td class="text-end"><span class="badge text-bg-warning">@alerta.StockMinimo unidades</span></td><td class="text-end"><button class="btn btn-outline-primary btn-sm" @onclick="() => Editar(alerta.Id)">Editar</button><button class="btn btn-outline-danger btn-sm ms-1" @onclick="() => ConfirmarEliminar(alerta.Id)">Eliminar</button></td></tr> }</tbody></table></div><PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
+@if (idEliminar.HasValue) { <div class="modal fade show d-block" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Eliminar alerta</h5><button class="btn-close" @onclick="CancelarEliminar"></button></div><div class="modal-body">¿Eliminar esta alerta de stock para la bodega activa?</div><div class="modal-footer"><button class="btn btn-secondary" @onclick="CancelarEliminar">Cancelar</button><button class="btn btn-danger" @onclick="EliminarConfirmadoAsync">Eliminar</button></div></div></div></div><div class="modal-backdrop fade show"></div> }
+
+@code {
+    private PagedResult<AlertaStock>? resultado; private readonly PageRequest request = new(); private int? idBodega; private int? idEliminar; private string nombreBodega = "bodega activa"; private string? error;
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private async Task CargarAsync() { try { idBodega = await BodegaContext.GetBodegaActivaAsync(); if (!idBodega.HasValue) { resultado = new PagedResult<AlertaStock>([], 0, 1, request.PageSize); return; } nombreBodega = (await BodegaService.GetByIdAsync(idBodega.Value))?.Nombre ?? nombreBodega; resultado = await Service.GetPageAsync(idBodega.Value, request); } catch (Exception ex) { error = ex.Message; resultado = new PagedResult<AlertaStock>([], 0, 1, request.PageSize); } }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
+    private void Nueva() => Nav.NavigateTo("/alertas-stock/nueva"); private void Editar(int id) => Nav.NavigateTo($"/alertas-stock/editar/{id}");
+    private void ConfirmarEliminar(int id) => idEliminar = id; private void CancelarEliminar() => idEliminar = null;
+    private async Task EliminarConfirmadoAsync() { if (!idBodega.HasValue || !idEliminar.HasValue) return; try { await Service.DeleteAsync(idEliminar.Value, idBodega.Value); idEliminar = null; await CargarAsync(); } catch (Exception ex) { error = ex.Message; } }
+}

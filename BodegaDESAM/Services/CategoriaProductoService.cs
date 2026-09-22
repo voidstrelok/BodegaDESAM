@@ -19,6 +19,16 @@ namespace BodegaDESAM.Services
                 .ToListAsync();
         }
 
+        public async Task<PagedResult<CategoriaProducto>> GetPageAsync(PageRequest request, CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+            var query = db.CategoriaProducto.AsNoTracking().AsQueryable();
+            long? id = long.TryParse(request.Search, out var parsedId) ? parsedId : null;
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(c => EF.Functions.ILike(c.Nombre, $"%{request.Search}%") || (id.HasValue && c.Id == id.Value));
+            return await query.OrderBy(c => c.Nombre).ThenBy(c => c.Id).ToPagedAsync(request, cancellationToken);
+        }
+
         public async Task<CategoriaProducto?> GetByIdAsync(long id)
         {
             using var db = _factory.CreateDbContext();

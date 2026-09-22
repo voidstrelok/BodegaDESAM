@@ -1,69 +1,22 @@
 @page "/proveedores"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
-
 @using BodegaDESAM.Services
 @inject ProveedorService ProveedorService
 @inject NavigationManager Nav
 
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h3 class="page-title m-0">Proveedores</h3>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
-    </div>
-</div>
-
-@if (proveedores == null)
-{
-    <p>Cargando...</p>
-}
-else if (proveedores.Count == 0)
-{
-    <p>No hay proveedores.</p>
-}
-else
-{
-    <div class="card-section p-2">
-        <table class="table table-sm table-hover align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Código</th>
-                <th>RUT</th>
-                <th>Nombre</th>
-                <th>Teléfono</th>
-                <th>Email</th>
-                <th>Dirección</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var p in proveedores)
-            {
-                <tr>
-                    <td>@p.Id</td>
-                    <td>@p.RUT</td>
-                    <td>@p.Nombre</td>
-                    <td>@p.Telefono</td>
-                    <td>@p.Email</td>
-                    <td>@p.Direccion</td>
-                    <td class="text-nowrap">
-                        <button class="btn btn-outline-primary btn-sm" @onclick='() => Nav.NavigateTo($"/proveedores/editar/{p.Id}")'>Editar</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-        </table>
-    </div>
-}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3"><h3 class="page-title m-0">Proveedores</h3><button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por RUT, nombre, teléfono, email o dirección..." AriaLabel="Buscar proveedores" /></div>
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.TotalItems == 0) { <p>No hay proveedores que coincidan con la búsqueda.</p> }
+else { <div class="card-section p-2"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead><tr><th>Código</th><th>RUT</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Dirección</th><th>Acciones</th></tr></thead><tbody>@foreach (var p in resultado.Items) { <tr><td>@p.Id</td><td>@p.RUT</td><td>@p.Nombre</td><td>@p.Telefono</td><td>@p.Email</td><td>@p.Direccion</td><td class="text-nowrap"><button class="btn btn-outline-primary btn-sm" @onclick='() => Nav.NavigateTo($"/proveedores/editar/{p.Id}")'>Editar</button></td></tr> }</tbody></table></div><PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
 
 @code {
-    private List<Proveedor>? proveedores;
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var loading = LoadingState.Begin();
-        proveedores = await ProveedorService.GetAllAsync();
-    }
-
+    private PagedResult<Proveedor>? resultado; private readonly PageRequest request = new();
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private async Task CargarAsync() { using var loading = LoadingState.Begin(); resultado = await ProveedorService.GetPageAsync(request); }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
     private void Nuevo() => Nav.NavigateTo("/proveedores/nuevo");
 }

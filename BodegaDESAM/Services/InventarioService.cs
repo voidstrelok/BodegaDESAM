@@ -26,13 +26,14 @@ namespace BodegaDESAM.Services
             _factory = factory;
         }
 
-        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync()
+        public async Task<List<InventarioProductoDto>> GetInventarioActualAsync(int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
 
             // Agrupar entradas por producto + marca + modelo
-            var entradasPorSKU = await db.DetalleEntrada
-                .AsNoTracking()
+            var entradasQuery = db.DetalleEntrada.AsNoTracking().AsQueryable();
+            if (idBodega is > 0) entradasQuery = entradasQuery.Where(d => d.Entrada.id_bodega == idBodega);
+            var entradasPorSKU = await entradasQuery
                 .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
                 .Select(g => new
                 {
@@ -44,8 +45,9 @@ namespace BodegaDESAM.Services
                 .ToListAsync();
 
             // Agrupar salidas por producto + marca + modelo (consistente con entradas)
-            var salidasPorSKU = await db.DetalleSalida
-                .AsNoTracking()
+            var salidasQuery = db.DetalleSalida.AsNoTracking().AsQueryable();
+            if (idBodega is > 0) salidasQuery = salidasQuery.Where(d => d.Salida.id_bodega == idBodega);
+            var salidasPorSKU = await salidasQuery
                 .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
                 .Select(g => new
                 {
@@ -59,8 +61,9 @@ namespace BodegaDESAM.Services
                     x => x.Total);
 
             // Agrupar ajustes por producto + marca + modelo
-            var ajustesPorSKU = await db.DetalleAjuste
-                .AsNoTracking()
+            var ajustesQuery = db.DetalleAjuste.AsNoTracking().AsQueryable();
+            if (idBodega is > 0) ajustesQuery = ajustesQuery.Where(d => d.Ajuste.id_bodega == idBodega);
+            var ajustesPorSKU = await ajustesQuery
                 .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
                 .Select(g => new
                 {
@@ -216,8 +219,9 @@ namespace BodegaDESAM.Services
                     x => x.Total);
 
             // Agrupar ajustes por SKU (sin lote — se distribuyen proporcionalmente)
-            var ajustesPorSKU = await db.DetalleAjuste
-                .AsNoTracking()
+            var ajustesBaseQuery = db.DetalleAjuste.AsNoTracking().AsQueryable();
+            if (idBodega is > 0) ajustesBaseQuery = ajustesBaseQuery.Where(d => d.Ajuste.id_bodega == idBodega);
+            var ajustesPorSKU = await ajustesBaseQuery
                 .GroupBy(d => new { d.id_producto, d.id_marca, d.id_modelo })
                 .Select(g => new
                 {
@@ -328,6 +332,119 @@ namespace BodegaDESAM.Services
                 .ThenBy(s => s.FechaVencimiento ?? DateOnly.MaxValue) // FEFO
                 .ThenBy(s => s.CodigoLote)
                 .ToList();
+        }
+
+        public async Task<PagedResult<InventarioProductoDto>> GetInventarioPageAsync(
+            int? idBodega,
+            PageRequest request,
+            string? categoria,
+            string? marca,
+            string? estadoStock,
+            bool soloConAjustes,
+            CancellationToken cancellationToken = default)
+        {
+            using var db = _factory.CreateDbContext();
+
+            var entradas = db.DetalleEntrada.AsNoTracking();
+            if (idBodega is > 0) entradas = entradas.Where(d => d.Entrada.id_bodega == idBodega);
+            var entradaRows = entradas.Select(d => new
+            {
+                d.id_producto,
+                d.id_marca,
+                d.id_modelo,
+                Entradas = (long)d.Cantidad,
+                Salidas = 0L,
+                Ajustes = 0L
+            });
+
+            var salidas = db.DetalleSalida.AsNoTracking();
+            if (idBodega is > 0) salidas = salidas.Where(d => d.Salida.id_bodega == idBodega);
+            var salidaRows = salidas.Select(d => new
+            {
+                d.id_producto,
+                d.id_marca,
+                d.id_modelo,
+                Entradas = 0L,
+                Salidas = (long)d.Cantidad,
+                Ajustes = 0L
+            });
+
+            var ajustes = db.DetalleAjuste.AsNoTracking();
+            if (idBodega is > 0) ajustes = ajustes.Where(d => d.Ajuste.id_bodega == idBodega);
+            var ajusteRows = ajustes.Select(d => new
+            {
+                d.id_producto,
+                d.id_marca,
+                d.id_modelo,
+                Entradas = 0L,
+                Salidas = 0L,
+                Ajustes = d.TipoAjuste == TipoAjuste.Aumento ? (long)d.Cantidad : -(long)d.Cantidad
+            });
+
+            var agrupados = entradaRows
+                .Concat(salidaRows)
+                .Concat(ajusteRows)
+                .GroupBy(x => new { x.id_producto, x.id_marca, x.id_modelo })
+                .Select(g => new
+                {
+                    g.Key.id_producto,
+                    g.Key.id_marca,
+                    g.Key.id_modelo,
+                    TotalEntradas = g.Sum(x => x.Entradas),
+                    TotalSalidas = g.Sum(x => x.Salidas),
+                    NetoAjustes = g.Sum(x => x.Ajustes)
+                });
+
+            var query = from sku in agrupados
+                        join producto in db.Producto.AsNoTracking() on sku.id_producto equals producto.Id
+                        join marcaEntity in db.Marca.AsNoTracking() on sku.id_marca equals marcaEntity.Id
+                        join categoriaEntity in db.CategoriaProducto.AsNoTracking() on producto.id_categoria_producto equals categoriaEntity.Id
+                        join modeloEntity in db.Modelo.AsNoTracking() on sku.id_modelo equals (long?)modeloEntity.Id into modelos
+                        from modeloEntity in modelos.DefaultIfEmpty()
+                        select new InventarioProductoDto
+                        {
+                            IdProducto = sku.id_producto,
+                            IdMarca = sku.id_marca,
+                            IdModelo = sku.id_modelo,
+                            NombreProducto = producto.Nombre,
+                            Marca = marcaEntity.Nombre,
+                            Modelo = modeloEntity == null ? null : modeloEntity.Nombre,
+                            Categoria = categoriaEntity.Nombre,
+                            TotalEntradas = sku.TotalEntradas,
+                            TotalSalidas = sku.TotalSalidas,
+                            NetoAjustes = sku.NetoAjustes,
+                            StockActual = sku.TotalEntradas - sku.TotalSalidas + sku.NetoAjustes
+                        };
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(x =>
+                    EF.Functions.ILike(x.NombreProducto, $"%{request.Search}%") ||
+                    EF.Functions.ILike(x.Marca ?? string.Empty, $"%{request.Search}%") ||
+                    EF.Functions.ILike(x.Modelo ?? string.Empty, $"%{request.Search}%") ||
+                    EF.Functions.ILike(x.Categoria ?? string.Empty, $"%{request.Search}%"));
+            if (!string.IsNullOrWhiteSpace(categoria))
+                query = query.Where(x => x.Categoria == categoria);
+            if (!string.IsNullOrWhiteSpace(marca))
+                query = query.Where(x => x.Marca == marca);
+            if (!string.IsNullOrWhiteSpace(estadoStock))
+            {
+                query = estadoStock switch
+                {
+                    "con-stock" => query.Where(x => x.StockActual > 0),
+                    "sin-stock" => query.Where(x => x.StockActual == 0),
+                    "bajo-cero" => query.Where(x => x.StockActual < 0),
+                    _ => query
+                };
+            }
+            if (soloConAjustes)
+                query = query.Where(x => x.NetoAjustes != 0);
+
+            return await query
+                .OrderBy(x => x.NombreProducto)
+                .ThenBy(x => x.Marca)
+                .ThenBy(x => x.Modelo)
+                .ThenBy(x => x.IdProducto)
+                .ToPagedAsync(request, cancellationToken);
         }
 
         /// <summary>

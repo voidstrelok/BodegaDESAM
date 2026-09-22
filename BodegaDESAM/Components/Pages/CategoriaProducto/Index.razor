@@ -1,89 +1,24 @@
 @page "/categorias-producto"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
-
 @using BodegaDESAM.Services
 @inject CategoriaProductoService Service
 @inject NavigationManager Nav
 
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h3 class="page-title m-0">Categorías de producto</h3>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
-    </div>
-</div>
-
-@if (!string.IsNullOrWhiteSpace(error))
-{
-    <div class="alert alert-danger" role="alert">@error</div>
-}
-
-@if (categorias == null)
-{
-    <p>Cargando...</p>
-}
-else if (categorias.Count == 0)
-{
-    <p>No hay categorías ingresadas.</p>
-}
-else
-{
-    <div class="card-section p-2">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var c in categorias)
-                {
-                    <tr>
-                        <td>@c.Id</td>
-                        <td>@c.Nombre</td>
-                        <td class="text-nowrap">
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Editar(c.Id)">Editar</button>
-                            <button type="button" class="btn btn-danger btn-sm ms-1" @onclick="() => Eliminar(c.Id)">Eliminar</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3"><h3 class="page-title m-0">Categorías de producto</h3><button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por código o nombre..." AriaLabel="Buscar categorías" /></div>
+@if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.TotalItems == 0) { <p>No hay categorías que coincidan con la búsqueda.</p> }
+else { <div class="card-section p-2"><table class="table table-sm table-hover align-middle mb-0"><thead><tr><th>Código</th><th>Nombre</th><th>Acciones</th></tr></thead><tbody>@foreach (var c in resultado.Items) { <tr><td>@c.Id</td><td>@c.Nombre</td><td class="text-nowrap"><button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Editar(c.Id)">Editar</button><button type="button" class="btn btn-danger btn-sm ms-1" @onclick="() => Eliminar(c.Id)">Eliminar</button></td></tr> }</tbody></table><PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
 
 @code {
-    List<CategoriaProducto>? categorias;
-    string? error;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await CargarAsync();
-    }
-
-    void Nuevo() => Nav.NavigateTo("/categorias-producto/nuevo");
-    void Editar(long id) => Nav.NavigateTo($"/categorias-producto/editar/{id}");
-
-    async Task CargarAsync()
-    {
-        using var loading = LoadingState.Begin();
-        categorias = await Service.GetAllAsync();
-    }
-
-    async Task Eliminar(long id)
-    {
-        error = null;
-        using var loading = LoadingState.Begin();
-        try
-        {
-            await Service.DeleteAsync(id);
-            await CargarAsync();
-        }
-        catch
-        {
-            error = "No se pudo eliminar la categoría. Verifica que no tenga productos asociados.";
-        }
-    }
+    private PagedResult<CategoriaProducto>? resultado; private readonly PageRequest request = new(); private string? error;
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private void Nuevo() => Nav.NavigateTo("/categorias-producto/nuevo"); private void Editar(long id) => Nav.NavigateTo($"/categorias-producto/editar/{id}");
+    private async Task CargarAsync() { using var loading = LoadingState.Begin(); resultado = await Service.GetPageAsync(request); }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
+    private async Task Eliminar(long id) { error = null; using var loading = LoadingState.Begin(); try { await Service.DeleteAsync(id); await CargarAsync(); } catch { error = "No se pudo eliminar la categoría. Verifica que no tenga productos asociados."; } }
 }

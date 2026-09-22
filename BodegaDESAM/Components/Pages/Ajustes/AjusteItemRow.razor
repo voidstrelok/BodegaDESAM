@@ -51,6 +51,13 @@
             <label class="form-label form-label-sm">Cantidad</label>
             <input type="number" class="form-control form-control-sm" min="1" @bind="Item.Cantidad" />
         </div>
+        @if (Item.TipoAjuste == TipoAjuste.Aumento)
+        {
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm">Valor unitario (CLP)</label>
+                <input type="number" class="form-control form-control-sm" min="1" step="1" @bind="Item.ValorUnitario" />
+            </div>
+        }
         <div class="col-6 col-md-2">
             <label class="form-label form-label-sm">Observación</label>
             <input type="text" class="form-control form-control-sm" @bind="Item.Observacion" />
@@ -111,6 +118,7 @@
     {
         if (Item.TipoAjuste != TipoAjuste.Aumento)
         {
+            Item.ValorUnitario = null;
             Item.FechaVencimiento = null;
             Item.id_lote = null;
             await SerieInputChanged.InvokeAsync(string.Empty);

@@ -14,6 +14,7 @@
 @inject AlertaService AlertaService
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject BodegaContextService BodegaContext
 
 <div class="movement-form-header">
     <div>
@@ -126,7 +127,8 @@
     protected override async Task OnInitializedAsync()
     {
         using var loading = LoadingState.Begin();
-        var bodega = await BodegaService.GetPrincipalAsync();
+        var idBodega = await BodegaContext.GetBodegaActivaAsync();
+        var bodega = idBodega.HasValue ? await BodegaService.GetByIdAsync(idBodega.Value) : null;
         if (bodega != null)
         {
             ajuste.id_bodega = bodega.Id;
@@ -248,10 +250,10 @@
             return;
         }
 
-        var invalido = items.FirstOrDefault(d => d.id_producto == 0 || d.id_marca == 0 || d.Cantidad < 1);
+        var invalido = items.FirstOrDefault(d => d.id_producto == 0 || d.id_marca == 0 || d.Cantidad < 1 || (d.TipoAjuste == TipoAjuste.Aumento && (!d.ValorUnitario.HasValue || d.ValorUnitario.Value < 1)));
         if (invalido != null)
         {
-            errorMsg = "Todos los ítems deben tener producto, marca y cantidad válidos.";
+            errorMsg = "Todos los ítems deben tener producto, marca, cantidad y valor unitario válidos. El valor unitario aplica a los aumentos.";
             return;
         }
 
@@ -262,7 +264,13 @@
             return;
 
         var authState = await AuthState.GetAuthenticationStateAsync();
-        ajuste.IdUsuario = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "sistema";
+        var usuarioId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(usuarioId))
+        {
+            errorMsg = "No se pudo identificar al usuario actual para registrar la auditoría.";
+            return;
+        }
+        ajuste.IdUsuario = usuarioId;
         ajuste.DetalleAjuste = items;
 
         guardando = true;

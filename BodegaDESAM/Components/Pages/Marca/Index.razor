@@ -1,65 +1,22 @@
-﻿@page "/marcas"
+@page "/marcas"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.AdminOrBodega)]
-
 @using BodegaDESAM.Services
 @inject MarcaService MarcaService
 @inject NavigationManager Nav
 
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <h3 class="page-title m-0">Marcas</h3>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button>
-    </div>
-</div>
-
-@if (marcas == null)
-{
-    <p>Cargando...</p>
-}
-else if (marcas.Count == 0)
-{
-    <p>No hay marcas ingresadas.</p>
-}
-else
-{
-    <div class="card-section p-2">
-        <table class="table table-sm table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var m in marcas)
-                {
-                    <tr>
-                        <td>@m.Id</td>
-                        <td>@m.Nombre</td>
-                        <td class="text-nowrap">
-                            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Editar(m.Id)">Editar</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3"><h3 class="page-title m-0">Marcas</h3><button type="button" class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo</button></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por código o nombre..." AriaLabel="Buscar marcas" /></div>
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.TotalItems == 0) { <p>No hay marcas que coincidan con la búsqueda.</p> }
+else { <div class="card-section p-2"><table class="table table-sm table-hover align-middle mb-0"><thead><tr><th>Código</th><th>Nombre</th><th>Acciones</th></tr></thead><tbody>@foreach (var m in resultado.Items) { <tr><td>@m.Id</td><td>@m.Nombre</td><td class="text-nowrap"><button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => Editar(m.Id)">Editar</button></td></tr> }</tbody></table><PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
 
 @code {
-    List<Marca>? marcas;
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var loading = LoadingState.Begin();
-        marcas = await MarcaService.GetAllAsync();
-    }
-
-    void Nuevo()
-    {
-        Nav.NavigateTo("/marcas/nuevo");
-    }
-    void Editar(long id) => Nav.NavigateTo($"/marcas/editar/{id}");
+    private PagedResult<Marca>? resultado; private readonly PageRequest request = new();
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private async Task CargarAsync() { using var loading = LoadingState.Begin(); resultado = await MarcaService.GetPageAsync(request); }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
+    private void Nuevo() => Nav.NavigateTo("/marcas/nuevo"); private void Editar(long id) => Nav.NavigateTo($"/marcas/editar/{id}");
 }

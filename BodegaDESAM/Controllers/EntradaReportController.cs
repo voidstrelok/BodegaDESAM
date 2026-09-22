@@ -11,11 +11,13 @@ namespace BodegaDESAM.Controllers
     {
         private readonly EntradaService _entradaService;
         private readonly EntradaPdfReportService _pdf;
+        private readonly BodegaAuthorizationService _bodegas;
 
-        public EntradaReportController(EntradaService entradaService, EntradaPdfReportService pdf)
+        public EntradaReportController(EntradaService entradaService, EntradaPdfReportService pdf, BodegaAuthorizationService bodegas)
         {
             _entradaService = entradaService;
             _pdf = pdf;
+            _bodegas = bodegas;
         }
 
         [HttpGet("{id:int}.pdf")]
@@ -24,6 +26,7 @@ namespace BodegaDESAM.Controllers
             var entrada = await _entradaService.GetByIdAsync(id);
             if (entrada == null)
                 return NotFound();
+            if (!await _bodegas.PuedeAccederAsync(User, entrada.id_bodega)) return Forbid();
 
             var bytes = _pdf.CreatePdf(entrada);
             return File(bytes, "application/pdf", $"entrada-{id}.pdf");

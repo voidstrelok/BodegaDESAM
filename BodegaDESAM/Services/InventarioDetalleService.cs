@@ -26,13 +26,15 @@ namespace BodegaDESAM.Services
             long? idMarca,
             long? idModelo,
             string? serieFiltro,
-            int? idEstablecimiento)
+            int? idEstablecimiento,
+            int? idBodega = null)
         {
             using var db = _factory.CreateDbContext();
 
             var entradasBase = await db.DetalleEntrada
                 .AsNoTracking()
                 .Where(d => d.id_producto == idProducto
+                    && (!idBodega.HasValue || d.Entrada.id_bodega == idBodega.Value)
                     && (!idMarca.HasValue || d.id_marca == idMarca.Value)
                     && d.id_modelo == idModelo)
                 .Select(d => new
@@ -62,6 +64,7 @@ namespace BodegaDESAM.Services
             var salidasBaseQ = db.DetalleSalida
                 .AsNoTracking()
                 .Where(d => d.id_producto == idProducto
+                    && (!idBodega.HasValue || d.Salida.id_bodega == idBodega.Value)
                     && (!idMarca.HasValue || d.id_marca == idMarca.Value)
                     && d.id_modelo == idModelo)
                 .Select(d => new
@@ -145,6 +148,7 @@ namespace BodegaDESAM.Services
             var ajustesBase = await db.DetalleAjuste
                 .AsNoTracking()
                 .Where(d => d.id_producto == idProducto
+                    && (!idBodega.HasValue || d.Ajuste.id_bodega == idBodega.Value)
                     && (!idMarca.HasValue || d.id_marca == idMarca.Value)
                     && d.id_modelo == idModelo)
                 .Select(d => new

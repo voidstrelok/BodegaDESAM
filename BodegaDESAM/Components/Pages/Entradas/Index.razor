@@ -1,79 +1,35 @@
 @page "/entradas"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Public)]
-
 @using BodegaDESAM.Services
 @inject EntradaService EntradaService
 @inject NavigationManager Nav
+@inject BodegaContextService BodegaContext
 
-<div class="page-header">
-    <div>
-        <h3 class="page-title m-0">Entradas</h3>
-        <p class="page-subtitle mb-0">Recepciones registradas en bodega.</p>
-    </div>
-    <AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized>
-        <button type="button" class="btn btn-primary" @onclick="Nuevo"><i class="bi bi-plus-lg me-1"></i>Nueva entrada</button>
-    </Authorized></AuthorizeView>
-</div>
+<div class="page-header"><div><h3 class="page-title m-0">Entradas</h3><p class="page-subtitle mb-0">Recepciones registradas en bodega.</p></div><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button type="button" class="btn btn-primary" @onclick="Nuevo"><i class="bi bi-plus-lg me-1"></i>Nueva entrada</button></Authorized></AuthorizeView></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por documento, proveedor, bodega u observación..." AriaLabel="Buscar entradas" /></div>
 
-@if (entradas == null) { <p>Cargando...</p> }
-else if (entradas.Count == 0) { <div class="empty-state">No hay entradas ingresadas.</div> }
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.TotalItems == 0) { <div class="empty-state">No hay entradas que coincidan con la búsqueda.</div> }
 else
 {
-    <div class="movement-table card-section d-none d-md-block">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead><tr><th class="movement-code">Código</th><th class="movement-date">Fecha</th><th>Proveedor</th><th>Bodega</th><th class="d-none d-lg-table-cell">N.º documento</th><th class="d-none d-xl-table-cell">Observación</th><th class="movement-actions-col">Acciones</th></tr></thead>
-                <tbody>@foreach (var e in entradas)
-                {
-                    <tr>
-                        <td class="fw-semibold">#@e.Id</td><td class="text-nowrap">@e.Fecha.ToString("dd/MM/yyyy")</td>
-                        <td><div class="text-truncate" title="@e.Proveedor.Nombre">@e.Proveedor.Nombre</div></td>
-                        <td><div class="text-truncate" title="@e.Bodega.Nombre">@e.Bodega.Nombre @if (e.Bodega.EsPrincipal) { <span class="badge bg-primary ms-1">Principal</span> }</div></td>
-                        <td class="d-none d-lg-table-cell text-nowrap">@e.NDocumento</td>
-                        <td class="d-none d-xl-table-cell"><div class="text-truncate" title="@e.Observacion">@e.Observacion</div></td>
-                        <td><div class="movement-actions">
-                            <button class="btn btn-outline-secondary btn-sm" title="Ver detalle" aria-label="Ver detalle de entrada @e.Id" @onclick="() => Ver(e.Id)"><i class="bi bi-eye"></i></button>
-                            <a class="btn btn-outline-info btn-sm" href="@($"reports/entradas/{e.Id}.pdf")" target="_blank" title="Descargar PDF" aria-label="Descargar PDF de entrada @e.Id"><i class="bi bi-file-earmark-pdf"></i></a>
-                            <AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized>
-                                <button class="btn btn-outline-primary btn-sm" title="Editar" aria-label="Editar entrada @e.Id" @onclick="() => Editar(e.Id)"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-outline-danger btn-sm" title="Eliminar" aria-label="Eliminar entrada @e.Id" @onclick="() => Eliminar(e.Id)"><i class="bi bi-trash"></i></button>
-                            </Authorized></AuthorizeView>
-                        </div></td>
-                    </tr>
-                }</tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="movement-cards d-md-none">
-        @foreach (var e in entradas)
-        {
-            <article class="movement-card card-section">
-                <div class="movement-card-header"><div><span class="movement-kind">Entrada</span><div class="fw-semibold">#@e.Id</div></div><time class="text-muted small">@e.Fecha.ToString("dd/MM/yyyy")</time></div>
-                <dl class="movement-card-data"><div><dt>Proveedor</dt><dd>@e.Proveedor.Nombre</dd></div><div><dt>Bodega</dt><dd>@e.Bodega.Nombre</dd></div><div><dt>Documento</dt><dd>@e.NDocumento</dd></div></dl>
-                @if (!string.IsNullOrWhiteSpace(e.Observacion)) { <p class="movement-note">@e.Observacion</p> }
-                <div class="movement-card-actions"><button class="btn btn-outline-secondary" @onclick="() => Ver(e.Id)">Ver detalle</button><a class="btn btn-outline-info" href="@($"reports/entradas/{e.Id}.pdf")" target="_blank" aria-label="PDF"><i class="bi bi-file-earmark-pdf"></i></a><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button class="btn btn-outline-primary" @onclick="() => Editar(e.Id)" aria-label="Editar"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger" @onclick="() => Eliminar(e.Id)" aria-label="Eliminar"><i class="bi bi-trash"></i></button></Authorized></AuthorizeView></div>
-            </article>
-        }
-    </div>
+    <div class="movement-table card-section d-none d-md-block"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th class="movement-code">Código</th><th class="movement-date">Fecha</th><th>Proveedor</th><th>Bodega</th><th class="d-none d-lg-table-cell">N.º documento</th><th class="text-end">Total entrada (CLP)</th><th class="d-none d-xl-table-cell">Observación</th><th class="movement-actions-col">Acciones</th></tr></thead><tbody>@foreach (var e in resultado.Items) { <tr><td class="fw-semibold">#@e.Id</td><td class="text-nowrap">@e.Fecha.ToString("dd/MM/yyyy")</td><td><div class="text-truncate" title="@e.Proveedor.Nombre">@e.Proveedor.Nombre</div></td><td><div class="text-truncate" title="@e.Bodega.Nombre">@e.Bodega.Nombre</div></td><td class="d-none d-lg-table-cell text-nowrap">@e.NDocumento</td><td class="text-end text-nowrap">@FormatoTotal(e)</td><td class="d-none d-xl-table-cell"><div class="text-truncate" title="@e.Observacion">@e.Observacion</div></td><td><div class="movement-actions"><button class="btn btn-outline-secondary btn-sm" title="Ver detalle" @onclick="() => Ver(e.Id)"><i class="bi bi-eye"></i></button><a class="btn btn-outline-info btn-sm" href="@($"reports/entradas/{e.Id}.pdf")" target="_blank" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button class="btn btn-outline-primary btn-sm" @onclick="() => Editar(e.Id)" title="Editar"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger btn-sm" @onclick="() => Eliminar(e.Id)" title="Eliminar"><i class="bi bi-trash"></i></button></Authorized></AuthorizeView></div></td></tr> }</tbody></table></div></div>
+    <div class="movement-cards d-md-none">@foreach (var e in resultado.Items) { <article class="movement-card card-section"><div class="movement-card-header"><div><span class="movement-kind">Entrada</span><div class="fw-semibold">#@e.Id</div></div><time class="text-muted small">@e.Fecha.ToString("dd/MM/yyyy")</time></div><dl class="movement-card-data"><div><dt>Proveedor</dt><dd>@e.Proveedor.Nombre</dd></div><div><dt>Bodega</dt><dd>@e.Bodega.Nombre</dd></div><div><dt>Documento</dt><dd>@e.NDocumento</dd></div><div><dt>Total entrada</dt><dd>@FormatoTotal(e)</dd></div></dl>@if (!string.IsNullOrWhiteSpace(e.Observacion)) { <p class="movement-note">@e.Observacion</p> }<div class="movement-card-actions"><button class="btn btn-outline-secondary" @onclick="() => Ver(e.Id)">Ver detalle</button><a class="btn btn-outline-info" href="@($"reports/entradas/{e.Id}.pdf")" target="_blank"><i class="bi bi-file-earmark-pdf"></i></a><AuthorizeView Roles="@BodegaDESAM.Auth.AppRoles.AdminOrBodega"><Authorized><button class="btn btn-outline-primary" @onclick="() => Editar(e.Id)"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger" @onclick="() => Eliminar(e.Id)"><i class="bi bi-trash"></i></button></Authorized></AuthorizeView></div></article> }</div>
+    <PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" />
 }
 
-@if (MostrarConfirmEliminar)
-{
-    <div class="modal fade show d-block" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirmar eliminación</h5><button class="btn-close" @onclick="CancelarEliminar"></button></div><div class="modal-body"><p>¿Eliminar la entrada #@IdEliminar?</p><p class="text-muted mb-0">No será posible eliminarla si alguno de sus productos ya tiene salidas asociadas.</p>@if (!string.IsNullOrWhiteSpace(ErrorEliminar)) { <div class="alert alert-warning mt-3 mb-0">@ErrorEliminar</div> }</div><div class="modal-footer"><button class="btn btn-secondary" @onclick="CancelarEliminar">Cancelar</button><button class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button></div></div></div></div><div class="modal-backdrop fade show"></div>
-}
+@if (MostrarConfirmEliminar) { <div class="modal fade show d-block" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirmar eliminación</h5><button class="btn-close" @onclick="CancelarEliminar"></button></div><div class="modal-body"><p>¿Eliminar la entrada #@IdEliminar?</p><p class="text-muted mb-0">No será posible eliminarla si alguno de sus productos ya tiene salidas asociadas.</p>@if (!string.IsNullOrWhiteSpace(ErrorEliminar)) { <div class="alert alert-warning mt-3 mb-0">@ErrorEliminar</div> }</div><div class="modal-footer"><button class="btn btn-secondary" @onclick="CancelarEliminar">Cancelar</button><button class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button></div></div></div></div><div class="modal-backdrop fade show"></div> }
 
 @code {
-    List<Entrada>? entradas;
-    bool MostrarConfirmEliminar;
-    long IdEliminar;
-    string? ErrorEliminar;
-    protected override async Task OnInitializedAsync() { using var loading = LoadingState.Begin(); entradas = await EntradaService.GetAllAsync(); }
-    void Nuevo() => Nav.NavigateTo("/entradas/nuevo");
-    void Ver(int id) => Nav.NavigateTo($"/entradas/{id}");
-    void Editar(int id) => Nav.NavigateTo($"/entradas/editar/{id}");
-    Task Eliminar(long id) { IdEliminar = id; MostrarConfirmEliminar = true; ErrorEliminar = null; return Task.CompletedTask; }
-    async Task ConfirmarEliminar() { using var loading = LoadingState.Begin(); try { if (await EntradaService.DeleteAsync(IdEliminar)) { MostrarConfirmEliminar = false; entradas = await EntradaService.GetAllAsync(); } } catch (Exception ex) { ErrorEliminar = ex.Message; } }
-    void CancelarEliminar() { MostrarConfirmEliminar = false; IdEliminar = 0; ErrorEliminar = null; }
+    private PagedResult<Entrada>? resultado; private readonly PageRequest request = new(); private bool MostrarConfirmEliminar; private long IdEliminar; private string? ErrorEliminar;
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private async Task CargarAsync() { using var loading = LoadingState.Begin(); resultado = await EntradaService.GetPageAsync(await BodegaContext.GetBodegaActivaAsync(), request); }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
+    private void Nuevo() => Nav.NavigateTo("/entradas/nuevo"); private void Ver(int id) => Nav.NavigateTo($"/entradas/{id}"); private void Editar(int id) => Nav.NavigateTo($"/entradas/editar/{id}");
+    private Task Eliminar(long id) { IdEliminar = id; MostrarConfirmEliminar = true; ErrorEliminar = null; return Task.CompletedTask; }
+    private async Task ConfirmarEliminar() { using var loading = LoadingState.Begin(); try { if (await EntradaService.DeleteAsync(IdEliminar)) { MostrarConfirmEliminar = false; await CargarAsync(); } } catch (Exception ex) { ErrorEliminar = ex.Message; } }
+    private void CancelarEliminar() { MostrarConfirmEliminar = false; IdEliminar = 0; ErrorEliminar = null; }
+    private static string FormatoTotal(Entrada entrada) { if (entrada.DetalleEntrada == null || entrada.DetalleEntrada.Count == 0) return "$ 0"; if (entrada.DetalleEntrada.Any(d => !d.ValorUnitario.HasValue)) return "Sin valorizar"; return $"$ {entrada.DetalleEntrada.Sum(d => (decimal)d.Cantidad * d.ValorUnitario!.Value):N0}"; }
 }

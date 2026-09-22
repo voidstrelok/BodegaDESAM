@@ -1,0 +1,22 @@
+@page "/admin/bodegas"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+@using BodegaDESAM.Services
+@inject BodegaService Service
+@inject NavigationManager Nav
+
+<div class="d-flex align-items-center justify-content-between mb-3"><div><h3 class="page-title m-0">Bodegas</h3><p class="page-subtitle mb-0">Administra las bodegas disponibles para operar.</p></div><button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/admin/bodegas/nueva")'>Nueva bodega</button></div>
+<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por código, nombre o dirección..." AriaLabel="Buscar bodegas" /></div>
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.TotalItems == 0) { <div class="empty-state">No hay bodegas que coincidan con la búsqueda.</div> }
+else { <div class="card-section p-2"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Principal</th><th></th></tr></thead><tbody>@foreach (var b in resultado.Items) { <tr><td>@b.Codigo</td><td>@b.Nombre</td><td>@b.Direccion</td><td>@(b.EsPrincipal ? "Sí" : "No")</td><td class="text-end"><button class="btn btn-outline-primary btn-sm" @onclick='() => Nav.NavigateTo($"/admin/bodegas/{b.Id}")'>Editar</button><button class="btn btn-outline-danger btn-sm ms-1" @onclick="() => DesactivarAsync(b.Id)">Desactivar</button></td></tr> }</tbody></table></div><PaginationControls Page="@resultado.Page" TotalPages="@resultado.TotalPages" TotalItems="@resultado.TotalItems" PageSize="@resultado.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
+
+@code {
+    private PagedResult<Bodega>? resultado; private readonly PageRequest request = new();
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private async Task CargarAsync() { using var loading = LoadingState.Begin(); resultado = await Service.GetPageAsync(request); }
+    private async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await CargarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await CargarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await CargarAsync(); }
+    private async Task DesactivarAsync(int id) { await Service.DeleteAsync(id); await CargarAsync(); }
+}

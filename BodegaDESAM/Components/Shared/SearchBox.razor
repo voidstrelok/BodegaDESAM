@@ -1,0 +1,41 @@
+@implements IDisposable
+
+<div class="input-group input-group-sm">
+    <span class="input-group-text"><i class="bi bi-search"></i></span>
+    <input class="form-control" value="@Value" @oninput="OnInputAsync" placeholder="@Placeholder" aria-label="@AriaLabel" />
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Buscar...";
+    [Parameter] public string AriaLabel { get; set; } = "Buscar";
+
+    private CancellationTokenSource? debounce;
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        Value = args.Value?.ToString();
+        await InvokeAsync(StateHasChanged);
+
+        debounce?.Cancel();
+        debounce?.Dispose();
+        debounce = new CancellationTokenSource();
+        var token = debounce.Token;
+
+        try
+        {
+            await Task.Delay(250, token);
+            await ValueChanged.InvokeAsync(Value);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        debounce?.Cancel();
+        debounce?.Dispose();
+    }
+}

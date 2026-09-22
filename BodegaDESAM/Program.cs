@@ -53,6 +53,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization();
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<CategoriaProductoService>();
@@ -63,6 +64,9 @@ builder.Services.AddScoped<EntradaService>();
 builder.Services.AddScoped<LoteService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<BodegaService>();
+builder.Services.AddScoped<BodegaContextService>();
+builder.Services.AddScoped<UsuarioBodegaService>();
+builder.Services.AddScoped<BodegaAuthorizationService>();
 builder.Services.AddScoped<InventarioService>();
 builder.Services.AddScoped<InventarioDetalleService>();
 builder.Services.AddScoped<SalidaService>();
@@ -72,7 +76,10 @@ builder.Services.AddScoped<EntradaPdfReportService>();
 builder.Services.AddScoped<MovimientoProductoService>();
 builder.Services.AddScoped<UserDisplayNameService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<AuditContextService>();
+builder.Services.AddScoped<AuditQueryService>();
 builder.Services.AddScoped<AlertaService>();
+builder.Services.AddScoped<AlertaStockService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AjusteInventarioService>();
 builder.Services.AddScoped<LoadingState>();
@@ -91,12 +98,15 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 
 var app = builder.Build();
 
-// Aplicar migraciones pendientes automáticamente (necesario en entornos contenerizados)
-if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment()))
+// El esquema debe estar vigente antes de inicializar Identity o atender solicitudes.
+// MigrateAsync es idempotente: sólo aplica las migraciones aún pendientes.
 {
     using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+    logger.LogInformation("Verificando migraciones pendientes de la base de datos.");
     var db = scope.ServiceProvider.GetRequiredService<PostgresDataContext>();
     await db.Database.MigrateAsync();
+    logger.LogInformation("Migraciones de base de datos aplicadas correctamente.");
 }
 
 await IdentitySeed.SeedAsync(app.Services);

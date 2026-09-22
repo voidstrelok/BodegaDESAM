@@ -1,0 +1,26 @@
+@page "/admin/auditoria"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = BodegaDESAM.Auth.AppRoles.Admin)]
+@using BodegaDESAM.Services
+@using Microsoft.AspNetCore.Identity
+@inject AuditQueryService AuditQuery
+@inject BodegaService BodegaService
+@inject UserManager<IdentityUser> UserManager
+
+<div class="page-header"><div><span class="movement-kind">Administración</span><h3 class="page-title m-0">Bitácora de auditoría</h3><p class="page-subtitle mb-0">Trazabilidad inmutable de movimientos y cambios administrativos.</p></div>@if (resultado is not null) { <span class="badge text-bg-secondary">@resultado.Total evento(s)</span> }</div>
+<div class="card-section p-3 mb-3"><div class="row g-2 align-items-end"><div class="col-6 col-md-2"><label class="form-label small">Desde</label><InputDate class="form-control form-control-sm" @bind-Value="filtro.Desde" /></div><div class="col-6 col-md-2"><label class="form-label small">Hasta</label><InputDate class="form-control form-control-sm" @bind-Value="filtro.Hasta" /></div><div class="col-6 col-md-2"><label class="form-label small">Acción</label><InputSelect class="form-select form-select-sm" @bind-Value="filtro.Accion"><option value="">Todas</option>@foreach (var accion in acciones) { <option value="@accion">@accion</option> }</InputSelect></div><div class="col-6 col-md-2"><label class="form-label small">Entidad</label><InputText class="form-control form-control-sm" @bind-Value="filtro.Entidad" placeholder="Ej: Entrada" /></div><div class="col-8 col-md-2"><label class="form-label small">Bodega</label><InputSelect class="form-select form-select-sm" @bind-Value="filtro.BodegaId"><option value="">Todas</option>@foreach (var b in bodegas) { <option value="@b.Id">@b.Nombre</option> }</InputSelect></div><div class="col-4 col-md-2"><button class="btn btn-primary btn-sm w-100" @onclick="AplicarFiltrosAsync"><i class="bi bi-funnel me-1"></i>Filtrar</button></div><div class="col-12"><SearchBox Value="@filtro.Texto" ValueChanged="BuscarTextoAsync" Placeholder="Buscar en acción, entidad, detalle, bodega o usuario..." AriaLabel="Buscar auditoría" /></div></div></div>
+@if (resultado is null) { <p>Cargando...</p> }
+else if (resultado.Registros.Count == 0) { <div class="empty-state">No hay eventos para los filtros seleccionados.</div> }
+else { <div class="card-section p-2"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Bodega</th><th>Detalle</th></tr></thead><tbody>@foreach (var registro in resultado.Registros) { <tr><td class="text-nowrap small">@registro.FechaHora.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@NombreUsuario(registro.UsuarioId)</td><td><span class="badge text-bg-light border">@registro.Accion</span></td><td>@registro.Entidad <span class="text-muted">#@registro.EntidadId</span></td><td>@(registro.Bodega?.Nombre ?? "—")</td><td>@if (!string.IsNullOrWhiteSpace(registro.Detalle)) { <details><summary class="small text-primary">Ver detalle</summary><pre class="audit-detail">@registro.Detalle</pre></details> }</td></tr> }</tbody></table></div><PaginationControls Page="@resultado.Pagina" TotalPages="@resultado.TotalPaginas" TotalItems="@resultado.Total" PageSize="@filtro.TamanoPagina" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /></div> }
+
+@code {
+    private AuditFilter filtro = new(); private AuditPage? resultado; private List<Bodega> bodegas = new(); private readonly Dictionary<string, string> nombres = new();
+    private readonly string[] acciones = [AuditAcciones.Crear, AuditAcciones.Editar, AuditAcciones.Eliminar, AuditAcciones.Asignar, AuditAcciones.Quitar, AuditAcciones.Activar, AuditAcciones.Desactivar];
+    protected override async Task OnInitializedAsync() { bodegas = await BodegaService.GetAllAsync(); await BuscarAsync(); }
+    private async Task BuscarAsync() { resultado = await AuditQuery.BuscarAsync(filtro); foreach (var id in resultado.Registros.Select(x => x.UsuarioId).Distinct()) { if (!nombres.ContainsKey(id)) { var user = await UserManager.FindByIdAsync(id); nombres[id] = user?.Email ?? id; } } }
+    private async Task AplicarFiltrosAsync() { filtro.Pagina = 1; await BuscarAsync(); }
+    private async Task BuscarTextoAsync(string? texto) { filtro.Texto = texto; filtro.Pagina = 1; await BuscarAsync(); }
+    private async Task CambiarPaginaAsync(int pagina) { filtro.Pagina = pagina; await BuscarAsync(); }
+    private async Task CambiarTamanoAsync(int tamano) { filtro.TamanoPagina = tamano; filtro.Pagina = 1; await BuscarAsync(); }
+    private string NombreUsuario(string id) => nombres.TryGetValue(id, out var nombre) ? nombre : id;
+}

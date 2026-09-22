@@ -1,6 +1,9 @@
 ﻿@rendermode InteractiveServer
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject BodegaDESAM.Services.AlertaService AlertaService
+@inject BodegaDESAM.Services.BodegaContextService BodegaContext
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 @implements IDisposable
 
 <div class="top-row">
@@ -44,6 +47,19 @@
                     </div>
                 </div>
                 <div class="nav-divider"></div>
+                @if (bodegasPermitidas.Count > 0)
+                {
+                    <div class="bodega-selector px-3 pb-3">
+                        <div class="bodega-selector-label"><span><i class="bi bi-buildings-fill"></i>Bodega activa</span><span class="bodega-selector-status"></span></div>
+                        <div class="bodega-selector-control">
+                            <select id="bodega-activa" class="form-select form-select-sm" value="@idBodegaActiva" @onchange="CambiarBodegaAsync" @onclick:stopPropagation="true" aria-label="Seleccionar bodega activa">
+                                @foreach (var bodega in bodegasPermitidas) { <option value="@bodega.Id">@bodega.Nombre</option> }
+                            </select>
+                            <i class="bi bi-chevron-expand"></i>
+                        </div>
+                    </div>
+                    <div class="nav-divider"></div>
+                }
             </Authorized>
             <NotAuthorized>
                 <div class="nav-item">
@@ -130,6 +146,11 @@
                                 </NavLink>
                             </div>
                             <div class="nav-item">
+                                <NavLink class="nav-link" href="alertas-stock">
+                                    <i class="bi bi-bell"></i><span> Alertas de stock</span><i class="bi bi-chevron-right nav-arrow"></i>
+                                </NavLink>
+                            </div>
+                            <div class="nav-item">
                                 <NavLink class="nav-link" href="categorias-producto">
                                     <i class="bi bi-tags"></i>
                                     <span>Categorías</span>
@@ -174,6 +195,18 @@
                                         </NavLink>
                                     </div>
                                     <div class="nav-item">
+                                        <NavLink class="nav-link" href="admin/auditoria">
+                                            <i class="bi bi-journal-text"></i><span> Bitácora</span><i class="bi bi-chevron-right nav-arrow"></i>
+                                        </NavLink>
+                                    </div>
+                                    <div class="nav-item">
+                                        <NavLink class="nav-link" href="admin/bodegas">
+                                            <i class="bi bi-buildings"></i>
+                                            <span> Bodegas</span>
+                                            <i class="bi bi-chevron-right nav-arrow"></i>
+                                        </NavLink>
+                                    </div>
+                                    <div class="nav-item">
                                         <NavLink class="nav-link" href="admin/establecimientos">
                                             <i class="bi bi-building"></i>
                                             <span>Establecimientos</span>
@@ -205,6 +238,8 @@
 @code {
     private int totalAlertas;
     private bool menuAbierto;
+    private IReadOnlyList<Bodega> bodegasPermitidas = [];
+    private int? idBodegaActiva;
 
     public void Dispose()
     {
@@ -225,11 +260,23 @@
             var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             if (auth.User.Identity?.IsAuthenticated == true)
             {
-                var alertas = await AlertaService.GetAlertasActivasAsync();
+                bodegasPermitidas = await BodegaContext.GetBodegasPermitidasAsync();
+                idBodegaActiva = await BodegaContext.GetBodegaActivaAsync();
+                var alertas = await AlertaService.GetAlertasActivasAsync(idBodegaActiva);
                 totalAlertas = alertas.Count;
             }
         }
         catch { }
+    }
+
+    private async Task CambiarBodegaAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id) && await BodegaContext.SeleccionarAsync(id))
+        {
+            idBodegaActiva = id;
+            await JS.InvokeVoidAsync("bodegaSelector.save", id);
+            Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        }
     }
 
     private async Task ActualizarTotalAlertasAsync()
@@ -237,7 +284,7 @@
         using var loading = LoadingState.Begin();
         try
         {
-            totalAlertas = (await AlertaService.GetAlertasActivasAsync()).Count;
+            totalAlertas = (await AlertaService.GetAlertasActivasAsync(await BodegaContext.GetBodegaActivaAsync())).Count;
             await InvokeAsync(StateHasChanged);
         }
         catch { }

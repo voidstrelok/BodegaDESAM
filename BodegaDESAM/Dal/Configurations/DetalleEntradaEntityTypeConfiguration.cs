@@ -76,6 +76,11 @@ namespace BodegaDESAM
                 .HasPrecision(32, 0);
 
             builder
+                .Property(x => x.ValorUnitario)
+                .HasColumnName("valor_unitario")
+                .HasColumnType("bigint");
+
+            builder
                 .Property(x => x.id_modelo)
                 .HasColumnName("id_modelo")
                 .HasPrecision(32, 0);

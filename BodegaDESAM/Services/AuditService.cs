@@ -6,10 +6,12 @@ namespace BodegaDESAM.Services
     public class AuditService
     {
         private readonly IDbContextFactory<PostgresDataContext> _factory;
+        private readonly AuditContextService _context;
 
-        public AuditService(IDbContextFactory<PostgresDataContext> factory)
+        public AuditService(IDbContextFactory<PostgresDataContext> factory, AuditContextService context)
         {
             _factory = factory;
+            _context = context;
         }
 
         /// <summary>
@@ -21,7 +23,8 @@ namespace BodegaDESAM.Services
             string entidad,
             int entidadId,
             object? detalle = null,
-            string? ipOrigen = null)
+            string? ipOrigen = null,
+            int? bodegaId = null)
         {
             try
             {
@@ -32,6 +35,7 @@ namespace BodegaDESAM.Services
                     Accion = accion,
                     Entidad = entidad,
                     EntidadId = entidadId,
+                    BodegaId = bodegaId,
                     Detalle = detalle is not null
                         ? JsonSerializer.Serialize(detalle, new JsonSerializerOptions { WriteIndented = false })
                         : null,
@@ -44,6 +48,12 @@ namespace BodegaDESAM.Services
             {
                 // La auditoría nunca debe bloquear el flujo principal.
             }
+        }
+
+        public async Task RegistrarActualAsync(string accion, string entidad, int entidadId, object? detalle = null, int? bodegaId = null)
+        {
+            var actor = await _context.GetActorAsync();
+            await RegistrarAsync(actor.UsuarioId, accion, entidad, entidadId, detalle, actor.Ip, bodegaId);
         }
 
         public async Task<List<AuditLog>> GetUltimosAsync(int cantidad = 50)
@@ -62,6 +72,10 @@ namespace BodegaDESAM.Services
         public const string Crear = "Crear";
         public const string Editar = "Editar";
         public const string Eliminar = "Eliminar";
+        public const string Asignar = "Asignar";
+        public const string Quitar = "Quitar";
+        public const string Activar = "Activar";
+        public const string Desactivar = "Desactivar";
     }
 
     public static class AuditEntidades
@@ -69,5 +83,9 @@ namespace BodegaDESAM.Services
         public const string Entrada = "Entrada";
         public const string Salida = "Salida";
         public const string AjusteInventario = "AjusteInventario";
+        public const string AlertaStock = "AlertaStock";
+        public const string Bodega = "Bodega";
+        public const string Usuario = "Usuario";
+        public const string UsuarioBodega = "UsuarioBodega";
     }
 }

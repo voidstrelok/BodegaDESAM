@@ -17,9 +17,6 @@ namespace BodegaDESAM
         [StringLength(50, ErrorMessage = "El nombre debe tener entre 2 y 50 caracteres",MinimumLength =2)]
         public string Nombre { get; set; } = String.Empty;
 
-        [Range(0, int.MaxValue, ErrorMessage = "El stock mínimo debe ser 0 o mayor")]
-        public int? StockMinimo { get; set; }
-
         public virtual CategoriaProducto CategoriaProducto { get; set; } = null!;
 
         public virtual ICollection<ProductoSerie> ProductoSeries { get; set; } = new HashSet<ProductoSerie>();

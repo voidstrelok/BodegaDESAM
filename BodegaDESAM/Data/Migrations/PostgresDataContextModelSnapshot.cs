@@ -58,6 +58,37 @@ namespace BodegaDESAM.Data.Migrations
                     b.ToTable("ajuste_inventario", "BodegaDESAM");
                 });
 
+            modelBuilder.Entity("BodegaDESAM.AlertaStock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("IdBodega")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_bodega");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_producto");
+
+                    b.Property<int>("StockMinimo")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock_minimo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdProducto");
+
+                    b.HasIndex("IdBodega", "IdProducto")
+                        .IsUnique();
+
+                    b.ToTable("alerta_stock", "BodegaDESAM");
+                });
+
             modelBuilder.Entity("BodegaDESAM.AuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -70,6 +101,9 @@ namespace BodegaDESAM.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("BodegaId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Detalle")
                         .HasColumnType("text");
@@ -97,6 +131,14 @@ namespace BodegaDESAM.Data.Migrations
                         .HasColumnType("character varying(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BodegaId");
+
+                    b.HasIndex("FechaHora");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("Entidad", "Accion");
 
                     b.ToTable("AuditLog", "BodegaDESAM");
                 });
@@ -180,6 +222,10 @@ namespace BodegaDESAM.Data.Migrations
                     b.Property<long>("Cantidad")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("ValorUnitario")
+                        .HasColumnType("bigint")
+                        .HasColumnName("valor_unitario");
+
                     b.Property<DateTime?>("FechaVencimiento")
                         .HasColumnType("date");
 
@@ -245,6 +291,10 @@ namespace BodegaDESAM.Data.Migrations
                         .HasPrecision(32)
                         .HasColumnType("bigint")
                         .HasColumnName("cantidad");
+
+                    b.Property<long?>("ValorUnitario")
+                        .HasColumnType("bigint")
+                        .HasColumnName("valor_unitario");
 
                     b.Property<DateTime?>("FechaVencimiento")
                         .HasColumnType("date")
@@ -431,6 +481,7 @@ namespace BodegaDESAM.Data.Migrations
 
                     b.Property<string>("Nombre")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("character varying")
                         .HasColumnName("nombre");
 
@@ -546,9 +597,6 @@ namespace BodegaDESAM.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying")
                         .HasColumnName("nombre");
-
-                    b.Property<int?>("StockMinimo")
-                        .HasColumnType("integer");
 
                     b.Property<long>("id_categoria_producto")
                         .HasPrecision(32)
@@ -773,6 +821,34 @@ namespace BodegaDESAM.Data.Migrations
                     b.ToTable("ubicacion", "BodegaDESAM");
                 });
 
+            modelBuilder.Entity("BodegaDESAM.UsuarioBodega", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("IdBodega")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_bodega");
+
+                    b.Property<string>("IdUsuario")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("id_usuario");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdBodega");
+
+                    b.HasIndex("IdUsuario", "IdBodega")
+                        .IsUnique();
+
+                    b.ToTable("usuario_bodega", "BodegaDESAM");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -976,6 +1052,35 @@ namespace BodegaDESAM.Data.Migrations
                         .HasForeignKey("id_bodega")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.Navigation("Bodega");
+                });
+
+            modelBuilder.Entity("BodegaDESAM.AlertaStock", b =>
+                {
+                    b.HasOne("BodegaDESAM.Bodega", "Bodega")
+                        .WithMany()
+                        .HasForeignKey("IdBodega")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BodegaDESAM.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("IdProducto")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bodega");
+
+                    b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("BodegaDESAM.AuditLog", b =>
+                {
+                    b.HasOne("BodegaDESAM.Bodega", "Bodega")
+                        .WithMany()
+                        .HasForeignKey("BodegaId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Bodega");
                 });
@@ -1257,6 +1362,25 @@ namespace BodegaDESAM.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Bodega");
+                });
+
+            modelBuilder.Entity("BodegaDESAM.UsuarioBodega", b =>
+                {
+                    b.HasOne("BodegaDESAM.Bodega", "Bodega")
+                        .WithMany()
+                        .HasForeignKey("IdBodega")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("IdUsuario")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bodega");
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

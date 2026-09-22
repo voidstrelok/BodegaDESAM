@@ -5,20 +5,32 @@ namespace BodegaDESAM.Services
     public class EstablecimientoService
     {
         private readonly IDbContextFactory<PostgresDataContext> _factory;
+        private readonly AuditService _audit;
 
-        public EstablecimientoService(IDbContextFactory<PostgresDataContext> factory)
+        public EstablecimientoService(IDbContextFactory<PostgresDataContext> factory, AuditService audit)
         {
             _factory = factory;
+            _audit = audit;
         }
 
-        public async Task<List<Establecimiento>> GetAllAsync()
+    public async Task<List<Establecimiento>> GetAllAsync()
         {
             using var db = _factory.CreateDbContext();
             return await db.Establecimiento
                 .AsNoTracking()
                 .OrderBy(e => e.Nombre)
                 .ToListAsync();
-        }
+    }
+
+    public async Task<PagedResult<Establecimiento>> GetPageAsync(PageRequest request, CancellationToken cancellationToken = default)
+    {
+        using var db = _factory.CreateDbContext();
+        var query = db.Establecimiento.AsNoTracking().AsQueryable();
+        int? id = int.TryParse(request.Search, out var parsedId) ? parsedId : null;
+        if (!string.IsNullOrWhiteSpace(request.Search))
+            query = query.Where(e => EF.Functions.ILike(e.Nombre, $"%{request.Search}%") || (id.HasValue && e.Id == id.Value));
+        return await query.OrderBy(e => e.Nombre).ThenBy(e => e.Id).ToPagedAsync(request, cancellationToken);
+    }
 
         public async Task<Establecimiento?> GetByIdAsync(int id)
         {
@@ -36,6 +48,7 @@ namespace BodegaDESAM.Services
 
             db.Establecimiento.Add(establecimiento);
             await db.SaveChangesAsync();
+            await _audit.RegistrarActualAsync(AuditAcciones.Crear, "Establecimiento", establecimiento.Id, new { establecimiento.Nombre });
         }
 
         public async Task UpdateAsync(Establecimiento establecimiento)
@@ -46,6 +59,7 @@ namespace BodegaDESAM.Services
 
             db.Establecimiento.Update(establecimiento);
             await db.SaveChangesAsync();
+            await _audit.RegistrarActualAsync(AuditAcciones.Editar, "Establecimiento", establecimiento.Id, new { establecimiento.Nombre });
         }
 
         public async Task DeleteAsync(int id)
@@ -60,6 +74,7 @@ namespace BodegaDESAM.Services
 
             db.Establecimiento.Remove(establecimiento);
             await db.SaveChangesAsync();
+            await _audit.RegistrarActualAsync(AuditAcciones.Eliminar, "Establecimiento", id, new { establecimiento.Nombre });
         }
 
         private static string NormalizarNombre(string? nombre) => nombre?.Trim() ?? string.Empty;
