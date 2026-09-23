@@ -50,6 +50,12 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/login";
 });
 
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    // Al desactivar un usuario, su sesión se invalida en la siguiente solicitud.
+    options.ValidationInterval = TimeSpan.Zero;
+});
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddCascadingAuthenticationState();

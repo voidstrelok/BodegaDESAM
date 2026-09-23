@@ -15,19 +15,115 @@
 @inject BodegaService BodegaService
 @inject UsuarioBodegaService UsuarioBodegaService
 @inject IDbContextFactory<PostgresDataContext> DbFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-<div class="users-page-header">
-    <div><span class="movement-kind">Administración</span><h3 class="page-title mb-1">Usuarios y accesos</h3><p class="page-subtitle mb-0">Gestiona perfiles, roles y las bodegas a las que puede acceder cada persona.</p></div>
-    @if (users is not null) { <span class="users-count"><i class="bi bi-people-fill"></i>@totalUsers usuario(s)</span> }
-</div>
-
-<AuthorizeView>
-    <Authorized Context="auth">
-        <div class="text-muted small mb-2">
-            Sesión activa: @(auth.User.FindFirst("given_name")?.Value ?? auth.User.Identity?.Name)
+<main class="user-hub">
+    <header class="user-hub-header">
+        <div class="user-hub-title">
+            <span class="user-hub-mark"><i class="bi bi-person-gear"></i></span>
+            <div><span class="user-hub-eyebrow">Administración</span><h3>Usuarios</h3><p>Gestiona las personas que pueden ingresar a Bodega DESAM.</p></div>
         </div>
-    </Authorized>
-</AuthorizeView>
+        <AuthorizeView><Authorized Context="auth"><span class="user-hub-operator"><i class="bi bi-person-circle"></i>@(auth.User.FindFirst("given_name")?.Value ?? auth.User.Identity?.Name)</span></Authorized></AuthorizeView>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger user-hub-alert" role="alert"><i class="bi bi-exclamation-circle"></i>@error</div> }
+    @if (!string.IsNullOrWhiteSpace(success)) { <div class="alert alert-success user-hub-alert" role="alert"><i class="bi bi-check-circle"></i>@success</div> }
+
+    <section class="user-hub-overview" aria-label="Resumen">
+        <div><span><i class="bi bi-people"></i>Usuarios</span><strong>@totalUsers</strong><small>registrados en el sistema</small></div>
+        <div><span><i class="bi bi-person-check"></i>Acceso activo</span><strong>@(users?.Count(u => u.AccesoActivo) ?? 0)</strong><small>en los resultados actuales</small></div>
+        <div><span><i class="bi bi-buildings"></i>Bodegas</span><strong>@bodegas.Count</strong><small>disponibles para asignar</small></div>
+    </section>
+
+    <section class="user-hub-create">
+        <div class="user-hub-section-title"><span><i class="bi bi-person-plus"></i></span><div><h4>Agregar persona</h4><p>Su rol y sus bodegas se pueden ajustar en cualquier momento.</p></div></div>
+        <EditForm Model="create" OnValidSubmit="CreateUserAsync">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <div class="user-hub-form-grid">
+                <label><span>Nombre</span><InputText class="form-control" @bind-Value="create.Nombre" /><ValidationMessage For="() => create.Nombre" /></label>
+                <label><span>Apellido paterno</span><InputText class="form-control" @bind-Value="create.Apellido" /><ValidationMessage For="() => create.Apellido" /></label>
+                <label><span>Apellido materno</span><InputText class="form-control" @bind-Value="create.ApellidoMaterno" /><ValidationMessage For="() => create.ApellidoMaterno" /></label>
+                <label><span>Correo electrónico</span><InputText class="form-control" @bind-Value="create.Email" placeholder="nombre@desam.cl" /><ValidationMessage For="() => create.Email" /></label>
+                <label><span>Clave inicial</span><InputText class="form-control" type="password" @bind-Value="create.Password" placeholder="Mínimo 8 caracteres" /><ValidationMessage For="() => create.Password" /></label>
+                <label><span>Rol inicial</span><InputSelect class="form-select" @bind-Value="create.Role">@foreach (var r in allRoles) { <option value="@r">@r</option> }</InputSelect><ValidationMessage For="() => create.Role" /></label>
+            </div>
+            <div class="user-hub-create-footer"><small><i class="bi bi-info-circle"></i> La clave debe incluir mayúscula, minúscula y número.</small><button class="btn btn-primary" type="submit" disabled="@busy"><i class="bi bi-plus-lg"></i>Crear usuario</button></div>
+        </EditForm>
+    </section>
+
+    <section class="user-hub-directory">
+        <div class="user-hub-directory-head"><div><span class="user-hub-eyebrow">Directorio</span><h4>Personas y permisos</h4></div><div class="user-hub-search"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por nombre o correo..." AriaLabel="Buscar usuarios" /></div></div>
+        @if (users is null)
+        { <div class="user-hub-empty"><i class="bi bi-arrow-repeat"></i>Cargando usuarios...</div> }
+        else if (users.Count == 0)
+        { <div class="user-hub-empty"><i class="bi bi-people"></i>No se encontraron usuarios.</div> }
+        else
+        {
+            <div class="user-hub-cards">
+            @foreach (var u in users)
+            {
+                <article class="user-person-card @(u.IsEditing ? "is-editing" : "")">
+                    <div class="user-person-top">
+                        <div class="user-person-identity"><span class="user-person-avatar">@ObtenerIniciales(u)</span><div><h5>@($"{u.Nombre} {u.Apellido} {u.ApellidoMaterno}".Trim())</h5><p>@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</p></div></div>
+                        <span class="user-person-status @(u.AccesoActivo ? "enabled" : "disabled")"><i class="bi @(u.AccesoActivo ? "bi-check-circle-fill" : "bi-pause-circle-fill")"></i>@(u.AccesoActivo ? "Activo" : "Desactivado")</span>
+                    </div>
+
+                    @if (u.IsEditing)
+                    {
+                        <div class="user-person-edit">
+                            <label><span>Correo</span><InputText class="form-control form-control-sm" @bind-Value="u.Email" /></label>
+                            <div class="user-person-edit-grid"><label><span>Nombre</span><InputText class="form-control form-control-sm" @bind-Value="u.Nombre" /></label><label><span>Apellido paterno</span><InputText class="form-control form-control-sm" @bind-Value="u.Apellido" /></label></div>
+                            <div class="user-person-edit-grid"><label><span>Apellido materno</span><InputText class="form-control form-control-sm" @bind-Value="u.ApellidoMaterno" /></label><label><span>Nueva clave (opcional)</span><InputText class="form-control form-control-sm" type="password" @bind-Value="u.NuevaClave" placeholder="Mínimo 8 caracteres" /><small>Incluye mayúscula, minúscula y número.</small></label></div>
+                        </div>
+                    }
+
+                    <div class="user-person-block"><span class="user-person-label"><i class="bi bi-shield"></i>Roles actuales</span><div class="user-person-tags">@if (u.Roles.Count == 0) { <span class="user-person-muted">Sin roles asignados</span> } else { @foreach (var role in u.Roles) { <span class="user-person-tag">@role</span> } }</div></div>
+                    <div class="user-person-block"><span class="user-person-label"><i class="bi bi-box-seam"></i>Bodegas autorizadas</span><div class="user-person-warehouses">@if (u.Roles.Contains(BodegaDESAM.Auth.AppRoles.Admin)) { <span class="user-person-all"><i class="bi bi-shield-check"></i>Acceso a todas las bodegas</span> } else { @foreach (var bodega in bodegas) { <label class="user-person-warehouse"><input type="checkbox" checked="@EstaAsignada(u.Id, bodega.Id)" @onchange="e => CambiarBodegaAsync(u.Id, bodega.Id, e)" /><span>@bodega.Nombre</span></label> } }</div></div>
+                    <div class="user-person-actions">
+                        <select class="form-select form-select-sm" value="@GetSelectedRole(u.Id)" @onchange="e => SetSelectedRole(u.Id, e.Value?.ToString())" aria-label="Rol a gestionar">@foreach (var r in allRoles) { <option value="@r">@r</option> }</select>
+                        <div class="user-person-buttons">
+                            @if (u.IsEditing) { <button class="btn btn-primary btn-sm" disabled="@busy" @onclick="() => SaveUserAsync(u.Id)"><i class="bi bi-check-lg"></i>Guardar</button><button class="btn btn-light btn-sm" disabled="@busy" @onclick="() => CancelEdit(u.Id)">Cancelar</button> } else { <button class="btn btn-light btn-sm" disabled="@busy" @onclick="() => EditUser(u.Id)"><i class="bi bi-pencil"></i>Editar</button><button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => EditUser(u.Id)" title="Editar la nueva clave de acceso"><i class="bi bi-key"></i>Clave</button> }
+                            <button class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="() => AddRoleAsync(u.Id)" title="Agregar el rol seleccionado"><i class="bi bi-plus-lg"></i>Rol</button><button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => RemoveRoleAsync(u.Id)" title="Quitar el rol seleccionado"><i class="bi bi-dash-lg"></i>Rol</button>
+                            <button class="btn @(u.AccesoActivo ? "btn-outline-danger" : "btn-outline-success") btn-sm" disabled="@busy" @onclick="() => CambiarAccesoAsync(u.Id, !u.AccesoActivo)"><i class="bi @(u.AccesoActivo ? "bi-slash-circle" : "bi-check-circle")"></i>@(u.AccesoActivo ? "Desactivar" : "Activar")</button>
+                        </div>
+                    </div>
+                </article>
+            }
+            </div>
+            @if (userPage is not null) { <PaginationControls Page="@userPage.Page" TotalPages="@userPage.TotalPages" TotalItems="@userPage.TotalItems" PageSize="@userPage.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /> }
+        }
+    </section>
+</main>
+
+@if (mostrarVistaLegacy)
+{
+<section class="users-hero">
+    <div class="users-hero-copy">
+        <div class="users-hero-icon"><i class="bi bi-people-fill"></i></div>
+        <div>
+            <span class="movement-kind">Administración</span>
+            <h3 class="page-title mb-1">Usuarios y accesos</h3>
+            <p class="page-subtitle mb-0">Centraliza perfiles, permisos y acceso a las bodegas.</p>
+        </div>
+    </div>
+    <div class="users-hero-meta">
+        <AuthorizeView>
+            <Authorized Context="auth">
+                <span class="users-session"><i class="bi bi-person-check"></i>@(auth.User.FindFirst("given_name")?.Value ?? auth.User.Identity?.Name)</span>
+            </Authorized>
+        </AuthorizeView>
+        @if (users is not null) { <span class="users-count"><i class="bi bi-people"></i>@totalUsers registrados</span> }
+    </div>
+</section>
+
+@if (users is not null)
+{
+    <section class="users-summary" aria-label="Resumen de usuarios">
+        <div class="users-summary-item"><span class="users-summary-icon primary"><i class="bi bi-people"></i></span><div><strong>@totalUsers</strong><span>Usuarios registrados</span></div></div>
+        <div class="users-summary-item"><span class="users-summary-icon success"><i class="bi bi-person-check"></i></span><div><strong>@users.Count(u => u.AccesoActivo)</strong><span>Activos en esta página</span></div></div>
+        <div class="users-summary-item"><span class="users-summary-icon info"><i class="bi bi-box-seam"></i></span><div><strong>@bodegas.Count</strong><span>Bodegas disponibles</span></div></div>
+    </section>
+}
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -38,10 +134,10 @@
     <div class="alert alert-success" role="alert">@success</div>
 }
 
-<div class="page-toolbar mb-3"><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por email, usuario o nombre..." AriaLabel="Buscar usuarios" /></div>
+<div class="page-toolbar users-toolbar mb-3"><div><span class="users-toolbar-label">Directorio de usuarios</span><SearchBox Value="@request.Search" ValueChanged="BuscarAsync" Placeholder="Buscar por email, usuario o nombre..." AriaLabel="Buscar usuarios" /></div></div>
 
 <div class="card-section users-create-card p-3 mb-4">
-    <div class="users-section-heading"><div class="users-section-icon"><i class="bi bi-person-plus-fill"></i></div><div><h5>Nuevo usuario</h5><p>El acceso inicial se puede ajustar después por bodega.</p></div></div>
+    <div class="users-section-heading"><div class="users-section-icon"><i class="bi bi-person-plus-fill"></i></div><div><span class="movement-kind">Incorporación</span><h5>Crear usuario</h5><p>Define su identidad, clave y rol inicial. Las bodegas se ajustan después.</p></div></div>
     <EditForm Model="create" OnValidSubmit="CreateUserAsync">
         <DataAnnotationsValidator />
         <ValidationSummary />
@@ -85,7 +181,7 @@
         </div>
 
         <div class="mt-3">
-            <button class="btn btn-primary" type="submit" disabled="@busy">Crear usuario</button>
+            <button class="btn btn-primary users-create-button" type="submit" disabled="@busy"><i class="bi bi-person-plus me-1"></i>Crear usuario</button>
         </div>
     </EditForm>
 </div>
@@ -96,14 +192,16 @@
 }
 else
 {
-    <div class="card-section users-table-card p-2">
+    <div class="card-section users-table-card">
+        <div class="users-table-heading"><div><span class="movement-kind">Directorio</span><h5>Personas con acceso</h5></div><span>@totalUsers resultado(s)</span></div>
         <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0 users-table">
             <thead>
                 <tr>
-                    <th>Email/Usuario</th>
-                    <th>Bodegas asignadas</th>
+                    <th>Usuario</th>
+                    <th>Acceso</th>
+                    <th>Bodegas</th>
                     <th>Roles</th>
-                    <th style="width: 420px;">Acciones</th>
+                    <th class="users-actions-heading">Gestión</th>
                 </tr>
             </thead>
             <tbody>
@@ -113,12 +211,14 @@ else
                         <td class="users-warehouses-cell">
                             @if (!u.IsEditing)
                             {
-                                <div class="fw-semibold">@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</div>
-                                @if (!string.IsNullOrWhiteSpace(u.Nombre) || !string.IsNullOrWhiteSpace(u.Apellido) || !string.IsNullOrWhiteSpace(u.ApellidoMaterno))
-                                {
-                                    <div class="text-muted small">@($"{u.Nombre} {u.Apellido} {u.ApellidoMaterno}".Trim())</div>
-                                }
-                                <div class="text-muted small">@u.Id</div>
+                                <div class="users-identity">
+                                    <span class="users-avatar">@ObtenerIniciales(u)</span>
+                                    <div>
+                                        <div class="fw-semibold">@($"{u.Nombre} {u.Apellido}".Trim())</div>
+                                        <div class="users-email">@(!string.IsNullOrWhiteSpace(u.Email) ? u.Email : u.UserName)</div>
+                                        @if (!string.IsNullOrWhiteSpace(u.ApellidoMaterno)) { <div class="users-secondary">@u.ApellidoMaterno</div> }
+                                    </div>
+                                </div>
                             }
                             else
                             {
@@ -136,15 +236,29 @@ else
                                         <InputText class="form-control form-control-sm" @bind-Value="u.ApellidoMaterno" placeholder="Apellido materno" />
                                     </div>
                                     <div class="col-12">
+                                        <InputText class="form-control form-control-sm" type="password" @bind-Value="u.NuevaClave" placeholder="Nueva clave (opcional)" />
+                                        <div class="form-text">Mínimo 8 caracteres, con mayúscula, minúscula y número.</div>
+                                    </div>
+                                    <div class="col-12">
                                         <div class="text-muted small">@u.Id</div>
                                     </div>
                                 </div>
                             }
                         </td>
                         <td>
+                            @if (u.AccesoActivo)
+                            {
+                                <span class="users-status active"><i class="bi bi-check-circle-fill"></i>Activo</span>
+                            }
+                            else
+                            {
+                                <span class="users-status inactive"><i class="bi bi-pause-circle-fill"></i>Desactivado</span>
+                            }
+                        </td>
+                        <td>
                             @if (u.Roles.Contains(BodegaDESAM.Auth.AppRoles.Admin))
                             {
-                                <span class="badge text-bg-primary"><i class="bi bi-shield-check me-1"></i>Todas las bodegas</span>
+                                <span class="users-all-warehouses"><i class="bi bi-shield-check"></i>Todas las bodegas</span>
                             }
                             else
                             {
@@ -164,32 +278,39 @@ else
                             }
                             else
                             {
-                                @foreach (var role in u.Roles) { <span class="badge text-bg-light border me-1">@role</span> }
+                                @foreach (var role in u.Roles) { <span class="users-role">@role</span> }
                             }
                         </td>
-                        <td>
-                            <div class="d-flex flex-wrap gap-2">
-                                <select class="form-select form-select-sm" style="max-width: 200px;" value="@GetSelectedRole(u.Id)" @onchange="e => SetSelectedRole(u.Id, e.Value?.ToString())">
+                        <td class="users-actions-cell">
+                            <div class="users-actions">
+                                <div class="users-role-control">
+                                    <label class="visually-hidden" for="@($"role-{u.Id}")">Rol a gestionar</label>
+                                    <select id="@($"role-{u.Id}")" class="form-select form-select-sm" value="@GetSelectedRole(u.Id)" @onchange="e => SetSelectedRole(u.Id, e.Value?.ToString())">
                                     @foreach (var r in allRoles)
                                     {
                                         <option value="@r">@r</option>
                                     }
-                                </select>
+                                    </select>
+                                </div>
 
+                                <div class="users-action-row">
                                 @if (!u.IsEditing)
                                 {
-                                    <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => EditUser(u.Id)">Editar</button>
+                                    <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => EditUser(u.Id)"><i class="bi bi-pencil"></i><span>Editar</span></button>
                                 }
                                 else
                                 {
-                                    <button class="btn btn-primary btn-sm" disabled="@busy" @onclick="() => SaveUserAsync(u.Id)">Guardar</button>
+                                    <button class="btn btn-primary btn-sm" disabled="@busy" @onclick="() => SaveUserAsync(u.Id)"><i class="bi bi-check-lg"></i><span>Guardar</span></button>
                                     <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => CancelEdit(u.Id)">Cancelar</button>
                                 }
 
-                                <button class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="() => AddRoleAsync(u.Id)" title="Agrega el rol seleccionado">Agregar rol</button>
-                                <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => RemoveRoleAsync(u.Id)" title="Quita el rol seleccionado">Quitar rol</button>
+                                <button class="btn btn-outline-primary btn-sm" disabled="@busy" @onclick="() => AddRoleAsync(u.Id)" title="Agrega el rol seleccionado"><i class="bi bi-plus-lg"></i><span>Rol</span></button>
+                                <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => RemoveRoleAsync(u.Id)" title="Quita el rol seleccionado"><i class="bi bi-dash-lg"></i><span>Rol</span></button>
 
-                                <button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick="() => ResetPasswordAsync(u.Id)" title="Genera una clave temporal aleatoria">Reset password</button>
+                                <button class="btn @(u.AccesoActivo ? "btn-outline-danger" : "btn-outline-success") btn-sm" disabled="@busy" @onclick="() => CambiarAccesoAsync(u.Id, !u.AccesoActivo)">
+                                    <i class="bi @(u.AccesoActivo ? "bi-slash-circle" : "bi-check-circle")"></i><span>@(u.AccesoActivo ? "Desactivar" : "Activar")</span>
+                                </button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -198,6 +319,7 @@ else
         </table></div>
         @if (userPage is not null) { <PaginationControls Page="@userPage.Page" TotalPages="@userPage.TotalPages" TotalItems="@userPage.TotalItems" PageSize="@userPage.PageSize" PageChanged="CambiarPaginaAsync" PageSizeChanged="CambiarTamanoAsync" /> }
     </div>
+}
 }
 
 @code {
@@ -214,6 +336,7 @@ else
     string? error;
     string? success;
     bool busy;
+    bool mostrarVistaLegacy = false;
 
     readonly CreateUserVm create = new();
 
@@ -270,6 +393,7 @@ else
                 Nombre = nombre,
                 Apellido = apellido,
                 ApellidoMaterno = apellidoMaterno,
+                AccesoActivo = TieneAccesoActivo(u),
                 Roles = roles
             });
 
@@ -281,7 +405,7 @@ else
         userPage = new PagedResult<UserWithRolesVm>(users, totalUsers, request.Page, request.PageSize);
         original = users.ToDictionary(
             u => u.Id,
-            u => new UserWithRolesVm { Id = u.Id, UserName = u.UserName, Email = u.Email, Nombre = u.Nombre, Apellido = u.Apellido, ApellidoMaterno = u.ApellidoMaterno, Roles = u.Roles.ToList() });
+            u => new UserWithRolesVm { Id = u.Id, UserName = u.UserName, Email = u.Email, Nombre = u.Nombre, Apellido = u.Apellido, ApellidoMaterno = u.ApellidoMaterno, AccesoActivo = u.AccesoActivo, Roles = u.Roles.ToList() });
         }
         catch (Exception ex)
         {
@@ -295,6 +419,19 @@ else
     async Task BuscarAsync(string? texto) { request.Search = texto; request.Page = 1; await LoadAsync(); }
     async Task CambiarPaginaAsync(int pagina) { request.Page = pagina; await LoadAsync(); }
     async Task CambiarTamanoAsync(int tamano) { request.PageSize = tamano; request.Page = 1; await LoadAsync(); }
+
+    static string ObtenerIniciales(UserWithRolesVm usuario)
+    {
+        var nombre = $"{usuario.Nombre} {usuario.Apellido}".Trim();
+        if (!string.IsNullOrWhiteSpace(nombre))
+        {
+            var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return string.Concat(partes.Take(2).Select(p => char.ToUpperInvariant(p[0])));
+        }
+
+        var identificador = usuario.Email ?? usuario.UserName ?? "?";
+        return char.ToUpperInvariant(identificador[0]).ToString();
+    }
 
     bool EstaAsignada(string idUsuario, int idBodega) => bodegasPorUsuario.TryGetValue(idUsuario, out var ids) && ids.Contains(idBodega);
 
@@ -332,6 +469,7 @@ else
             u.Nombre = o.Nombre;
             u.Apellido = o.Apellido;
             u.ApellidoMaterno = o.ApellidoMaterno;
+            u.NuevaClave = null;
         }
 
         u.IsEditing = false;
@@ -364,6 +502,19 @@ else
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(vm.NuevaClave))
+            {
+                var token = await UserManager.GeneratePasswordResetTokenAsync(user);
+                var cambioClave = await UserManager.ResetPasswordAsync(user, token, vm.NuevaClave);
+                if (!cambioClave.Succeeded)
+                {
+                    error = string.Join(" ", cambioClave.Errors.Select(e => e.Description));
+                    return;
+                }
+
+                await UserManager.UpdateSecurityStampAsync(user);
+            }
+
             user.Email = email;
             user.UserName = email;
 
@@ -379,7 +530,7 @@ else
             await UpsertClaimAsync(user, claims, "family_name", vm.Apellido?.Trim());
             await UpsertClaimAsync(user, claims, "maternal_family_name", vm.ApellidoMaterno?.Trim());
 
-            success = "Usuario actualizado.";
+            success = string.IsNullOrWhiteSpace(vm.NuevaClave) ? "Usuario actualizado." : "Usuario y clave actualizados.";
             await LoadAsync();
         }
         finally
@@ -586,7 +737,10 @@ else
         }
     }
 
-    async Task ResetPasswordAsync(string userId)
+    static bool TieneAccesoActivo(IdentityUser user) =>
+        !user.LockoutEnabled || !user.LockoutEnd.HasValue || user.LockoutEnd <= DateTimeOffset.UtcNow;
+
+    async Task CambiarAccesoAsync(string userId, bool activar)
     {
         using var loading = LoadingState.Begin();
         error = null;
@@ -602,23 +756,60 @@ else
                 return;
             }
 
-            const string passwordCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$%";
-            var temporaryPassword = RandomNumberGenerator.GetString(passwordCharacters, 20);
-            var token = await UserManager.GeneratePasswordResetTokenAsync(user);
-            var res = await UserManager.ResetPasswordAsync(user, token, temporaryPassword);
+            var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUserId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!activar && user.Id == currentUserId)
+            {
+                error = "No puedes desactivar tu propio acceso.";
+                return;
+            }
+
+            if (!activar && await EsUltimoAdministradorActivoAsync(user))
+            {
+                error = "No se puede desactivar al último administrador con acceso activo.";
+                return;
+            }
+
+            user.LockoutEnabled = true;
+            var res = await UserManager.SetLockoutEndDateAsync(user, activar ? null : DateTimeOffset.MaxValue);
             if (!res.Succeeded)
             {
                 error = string.Join(" ", res.Errors.Select(e => e.Description));
                 return;
             }
 
-            await UserManager.SetLockoutEndDateAsync(user, null);
-            success = $"Contraseña temporal generada: {temporaryPassword}. Entrégala al usuario por un canal seguro.";
+            if (activar)
+                await UserManager.ResetAccessFailedCountAsync(user);
+
+            var securityStamp = await UserManager.UpdateSecurityStampAsync(user);
+            if (!securityStamp.Succeeded)
+            {
+                error = string.Join(" ", securityStamp.Errors.Select(e => e.Description));
+                return;
+            }
+
+            success = activar ? "Acceso activado." : "Acceso desactivado.";
+            await LoadAsync();
         }
         finally
         {
             busy = false;
         }
+    }
+
+    async Task<bool> EsUltimoAdministradorActivoAsync(IdentityUser candidato)
+    {
+        if (!await UserManager.IsInRoleAsync(candidato, BodegaDESAM.Auth.AppRoles.Admin))
+            return false;
+
+        var administradoresActivos = 0;
+        foreach (var usuario in UserManager.Users.ToList())
+        {
+            if (TieneAccesoActivo(usuario) && await UserManager.IsInRoleAsync(usuario, BodegaDESAM.Auth.AppRoles.Admin))
+                administradoresActivos++;
+        }
+
+        return administradoresActivos <= 1;
     }
 
 }
