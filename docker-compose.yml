@@ -13,21 +13,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - 5435:5432
   app:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3100:8080"
+      - "127.0.0.1:3100:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__PostgresDataContext: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Search Path=BodegaDESAM;Pooling=true"
       DataProtection__KeysPath: /var/app/keys
       ReverseProxy__Enabled: "true"
+      Admin__Email: ${ADMIN_EMAIL:-}
+      Admin__Password: ${ADMIN_PASSWORD:-}
       Database__ApplyMigrationsOnStartup: "true"
     depends_on:
       db:

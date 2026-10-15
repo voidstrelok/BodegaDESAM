@@ -96,6 +96,8 @@ namespace BodegaDESAM.Services
                             .ThenInclude(de => de.Entrada)
                                 .ThenInclude(e => e.Proveedor)
                 .Include(s => s.DetalleSalida)
+                    .ThenInclude(d => d.Ubicacion)
+                .Include(s => s.DetalleSalida)
                     .ThenInclude(d => d.DetalleEntrada)
                         .ThenInclude(de => de!.Entrada)
                             .ThenInclude(e => e.Proveedor)

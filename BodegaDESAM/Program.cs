@@ -1,4 +1,4 @@
-using BodegaDESAM;
+﻿using BodegaDESAM;
 using BodegaDESAM.Components;
 using BodegaDESAM.Data;
 using BodegaDESAM.Services;
@@ -48,7 +48,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/login";
     options.AccessDeniedPath = "/login";
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 });
+
+builder.Services.AddAntiforgery(options =>
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always);
 
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 {
@@ -115,7 +119,7 @@ var app = builder.Build();
     logger.LogInformation("Migraciones de base de datos aplicadas correctamente.");
 }
 
-await IdentitySeed.SeedAsync(app.Services);
+await IdentitySeed.SeedAsync(app.Services, app.Environment.IsDevelopment());
 
 if (app.Environment.IsDevelopment())
 {
@@ -127,10 +131,16 @@ if (app.Environment.IsDevelopment())
 // Configure the HTTP request pipeline.
 if (builder.Configuration.GetValue<bool>("ReverseProxy:Enabled"))
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    // El proxy inverso no es loopback (red de Docker / otro host): sin limpiar estas listas
+    // se ignora X-Forwarded-Proto y la app cree que atiende HTTP.
+    // Seguro porque el puerto de la app sólo se publica hacia el proxy, no a Internet.
+    var forwarded = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-    });
+    };
+    forwarded.KnownNetworks.Clear();
+    forwarded.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwarded);
 }
 
 if (app.Environment.IsDevelopment())

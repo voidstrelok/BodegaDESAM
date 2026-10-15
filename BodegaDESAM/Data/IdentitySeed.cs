@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using BodegaDESAM.Auth;
 using System.Security.Claims;
@@ -7,7 +7,7 @@ namespace BodegaDESAM.Data;
 
 public static class IdentitySeed
 {
-    public static async Task SeedAsync(IServiceProvider services)
+    public static async Task SeedAsync(IServiceProvider services, bool esDesarrollo)
     {
         using var scope = services.CreateScope();
 
@@ -22,9 +22,28 @@ public static class IdentitySeed
                 await roleManager.CreateAsync(new IdentityRole(role));
         }
 
-        await EnsureUserAsync(userManager, "rcontreras@desam", "Admin123", AppRoles.Admin, "Ricardo", "Contreras", "Cortés");
-        await EnsureUserAsync(userManager, "fcortes@desam", "Bodega123", AppRoles.Bodega, "Francisco", "Cortés", "Castillo");
-        await EnsureUserAsync(userManager, "fespinosa@desam", "Lectura123", AppRoles.Lectura, "Fernanda", "Espinosa", "Aguirre");
+        if (esDesarrollo)
+        {
+            // Cuentas de prueba: nunca se crean fuera de Development.
+            await EnsureUserAsync(userManager, "rcontreras@desam", "Admin123", AppRoles.Admin, "Ricardo", "Contreras", "Cortés");
+            await EnsureUserAsync(userManager, "fcortes@desam", "Bodega123", AppRoles.Bodega, "Francisco", "Cortés", "Castillo");
+            await EnsureUserAsync(userManager, "fespinosa@desam", "Lectura123", AppRoles.Lectura, "Fernanda", "Espinosa", "Aguirre");
+        }
+        else
+        {
+            // Primer arranque: crea el administrador inicial sólo si no existe ninguno.
+            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("IdentitySeed");
+            if ((await userManager.GetUsersInRoleAsync(AppRoles.Admin)).Count == 0)
+            {
+                var email = config["Admin:Email"];
+                var password = config["Admin:Password"];
+                if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                    logger.LogWarning("No hay administradores y Admin__Email/Admin__Password no están definidos: no se creó ningún usuario inicial.");
+                else
+                    await EnsureUserAsync(userManager, email.Trim(), password, AppRoles.Admin, "Administrador", "", "");
+            }
+        }
 
         //Seed incial, establecimientos, bodega
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PostgresDataContext>>();
@@ -103,6 +122,7 @@ public static class IdentitySeed
         string type,
         string value)
     {
+        if (string.IsNullOrWhiteSpace(value)) return;
         var existing = claims.FirstOrDefault(claim => claim.Type == type);
         var updated = new Claim(type, value);
 

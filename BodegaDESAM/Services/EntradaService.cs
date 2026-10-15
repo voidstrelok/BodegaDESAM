@@ -66,6 +66,7 @@ namespace BodegaDESAM.Services
                 .Include(d => d.Marca)
                 .Include(d => d.Modelo)
                 .Include(d => d.Lote)
+                .Include(d => d.Ubicacion)
                 .Include(d => d.ProductoSeries)
                 .ToListAsync();
 

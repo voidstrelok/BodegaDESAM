@@ -11,12 +11,14 @@ namespace BodegaDESAM.Controllers
     {
         private readonly EntradaService _entradaService;
         private readonly EntradaPdfReportService _pdf;
+        private readonly UserDisplayNameService _userDisplayName;
         private readonly BodegaAuthorizationService _bodegas;
 
-        public EntradaReportController(EntradaService entradaService, EntradaPdfReportService pdf, BodegaAuthorizationService bodegas)
+        public EntradaReportController(EntradaService entradaService, EntradaPdfReportService pdf, UserDisplayNameService userDisplayName, BodegaAuthorizationService bodegas)
         {
             _entradaService = entradaService;
             _pdf = pdf;
+            _userDisplayName = userDisplayName;
             _bodegas = bodegas;
         }
 
@@ -28,7 +30,8 @@ namespace BodegaDESAM.Controllers
                 return NotFound();
             if (!await _bodegas.PuedeAccederAsync(User, entrada.id_bodega)) return Forbid();
 
-            var bytes = _pdf.CreatePdf(entrada);
+            var registradoPor = await _userDisplayName.GetNombreCompletoAsync(entrada.IdUsuario);
+            var bytes = _pdf.CreatePdf(entrada, registradoPor);
             return File(bytes, "application/pdf", $"entrada-{id}.pdf");
         }
     }
